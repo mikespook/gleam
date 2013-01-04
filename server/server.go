@@ -35,8 +35,8 @@ func main() {
     n.ErrHandler = node.ErrHandler
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
-    n.Bind("Debug", Debug)
-//    n.Bind("Shell", Shell)
+//    n.Bind("Shell", ExecShell)
+//    n.Bind("PHP", ExecPHP)
     if err := n.Start(*uri, *buri); err != nil {
         log.Error(err)
     }

@@ -118,12 +118,15 @@ func (node *ZNode) watch(file string) {
                 node.err(err)
                 continue
             }
-            if _, err := node.fmap.Call(fn.Name, fn.Params ...); err != nil {
-                node.err(err)
-                continue
-            }
+            go node.Call(fn.Name, fn.Params ...)
             i = 0
         }
+    }
+}
+
+func (node *ZNode) Call(name string, params ... interface{}) {
+    if _, err := node.fmap.Call(name, params ...); err != nil {
+        node.err(err)
     }
 }
 

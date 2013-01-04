@@ -48,7 +48,3 @@ func init() {
         log.Error(err)
     }
 }
-
-func Debug() {
-    log.Debug("DEBUG")
-}

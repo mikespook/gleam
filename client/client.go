@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "flag"
+    "time"
     "encoding/json"
     "github.com/mikespook/golib/log"
     "github.com/skynetservices/doozer"
@@ -59,4 +60,6 @@ func main() {
         log.Error(err)
         return
     }
+    log.Messagef("Rev: %d", rev)
+    time.Sleep(time.Second)
 }
