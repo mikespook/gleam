@@ -3,17 +3,17 @@ Z-Node
 
 Z-Node is a task executing node based on [Doozer cluster](https://github.com/skynetservices/doozerd). It watch two files:
 
- * $BASE/z-node/$REGION/$HOST/$PID - for self tasks;
+ * $REGION/node/$HOST/$PID - for one-node tasks;
 
- * $BASE/z-node/$REGION/wire - for broadcasting tasks.
+ * $REGION/wire - for broadcasting tasks.
 
 Theory
 ======
 
-Z-Node will register itself as `$BASE/z-node/$REGION/$HOST/$PID` in Doozer and watch this file's change.
-The path is bound to $REGION, $HOST, $PID. If the file is changed, Z-Node will receive the changing message.
+Z-Node will register itself at `$REGION/info/$HOST/$PID` in Doozer.
+It watches the file `$REGION/node/$HOST/$PID`. If it was changed, Z-Node will notice it.
 
-All of Z-Node are watching `$BASE/z-node/$REGION/wire`. It means, if this file is changed, all of Z-Node will notice it.
+All of Z-Node are watching `$REGION/wire`. If this file was changed, all of Z-Node will notice it.
 
 The message is json encoded data with function name and paramaters. Z-Node will call the function with the paramaters.
 
@@ -22,10 +22,23 @@ The message is json encoded data with function name and paramaters. Z-Node will 
         Params: [(interface{}) ...]
     }
 
+Dependencies
+============
+
+[Doozer](https://github.com/skynetservices/doozer)
+
+[Golib](https://github.com/mikespook/golib)    
+
 Install
 =======
 
-> $ go get github.com/mikespook/z-node
+Server node
+
+> $ go get github.com/mikespook/z-node/server
+
+Client
+
+> $ go get github.com/mikespook/z-node/client
 
 Authors
 =======
