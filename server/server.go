@@ -30,8 +30,12 @@ func main() {
         time.Sleep(time.Second)
     }()
     log.Message("Starting...")
-
-    n := node.New(*region)
+    hostname, err := os.Hostname()
+    if err != nil {
+        log.Error(err)
+        return
+    }
+    n := node.New(*region, hostname)
     n.ErrHandler = node.ErrHandler
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
@@ -39,6 +43,7 @@ func main() {
 //    n.Bind("PHP", ExecPHP)
     if err := n.Start(*uri, *buri); err != nil {
         log.Error(err)
+        return
     }
     defer n.Close()
     go func() {

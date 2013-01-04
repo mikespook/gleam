@@ -14,8 +14,8 @@ const (
     MaxErrorCount = 5
     FuncPoolSize = 30
     WireFile = "%s/wire"
-    NodeFile = "%s/node/%d"
-    NodeList = "%s/info/%d"
+    NodeFile = "%s/node/%s/%d"
+    NodeInfo = "%s/info/%s/%d"
     DefaultRegion = "/z-node"
 )
 
@@ -23,7 +23,7 @@ type ZNode struct {
     ErrHandler ErrorHandlerFunc
 
     conn *doozer.Conn
-    uri, buri, region string
+    uri, buri, region, hostname string
     pid int
     rev int64
     fmap funcmap.Funcs
@@ -35,7 +35,7 @@ type ZFunc struct {
     Params []interface{}
 }
 
-func New(region string) (node *ZNode) {
+func New(region, hostname string) (node *ZNode) {
     if region == "" {
         region = DefaultRegion
     }
@@ -44,6 +44,7 @@ func New(region string) (node *ZNode) {
     }
     return &ZNode {
         region: region,
+        hostname: hostname,
         pid: os.Getpid(),
         fmap: funcmap.New(FuncPoolSize),
     }
@@ -56,6 +57,7 @@ func (node *ZNode) Bind(name string, fn interface{}) (err error) {
 func (node *ZNode) Start(uri, buri string) (err error) {
     node.uri = uri
     node.buri = buri
+
     if node.conn, err = doozer.DialUri(node.uri, node.buri); err != nil {
         return
     }
@@ -63,7 +65,7 @@ func (node *ZNode) Start(uri, buri string) (err error) {
         return
     }
     if node.rev, err = node.conn.Set(
-        fmt.Sprintf(NodeList, node.region, node.pid),
+        node.infopath(),
         node.rev, []byte(time.Now().String()));
         err != nil {
         return
@@ -75,12 +77,12 @@ func (node *ZNode) Start(uri, buri string) (err error) {
 
 func (node *ZNode) Close() {
     if err := node.conn.Del(
-        fmt.Sprintf(NodeList, node.region, node.pid),
+        node.infopath(),
         node.rev); err != nil {
         node.err(err)
     }
     if err := node.conn.Del(
-        fmt.Sprintf(NodeFile, node.region, node.pid),
+        node.nodepath(),
         node.rev); err != nil {
         node.err(err)
     }
@@ -130,12 +132,24 @@ func (node *ZNode) Call(name string, params ... interface{}) {
     }
 }
 
+func (node *ZNode) infopath() string {
+    return fmt.Sprintf(NodeInfo, node.region, node.hostname, node.pid)
+}
+
+func (node *ZNode) nodepath() string {
+    return fmt.Sprintf(NodeFile, node.region, node.hostname, node.pid)
+}
+
+func (node *ZNode) wirepath() string {
+    return fmt.Sprintf(WireFile, node.region)
+}
+
 func (node *ZNode) watchSelf() {
     node.w.Add(1)
-    go node.watch(fmt.Sprintf(NodeFile, node.region, node.pid))
+    go node.watch(node.nodepath())
 }
 
 func (node *ZNode) watchWire() {
     node.w.Add(1)
-    go node.watch(fmt.Sprintf(WireFile, node.region))
+    go node.watch(node.wirepath())
 }
