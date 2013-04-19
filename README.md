@@ -30,7 +30,9 @@ Dependencies
 
 [Doozer](https://github.com/ha/doozer)
 
-[Golib](https://github.com/mikespook/golib)    
+[Golib](https://github.com/mikespook/golib)   
+
+[py](https://github.com/qiniu/py)
 
 Install
 =======
@@ -59,16 +61,19 @@ All scripts were put in the directory [shell](https://github.com/mikespook/z-nod
  * DZNS master node
 
 > $ ./dzns-master.sh start
+
 > $ ./dzns-master.sh stop
 
  * DZNS node
 
 > $ ./dzns-node.sh start
+
 > $ ./dzns-node.sh stop
 
  * Doozerd node
  
 > $ ./doozerd-node.sh start
+
 > $ ./doozerd-node.sh stop
 
 Authors
