@@ -15,7 +15,7 @@ var (
     buri = flag.String("dzns", "", "address of the DzNS")
     region = flag.String("region", "z-node", "a region of the z-node located in")
     pid = flag.Int("pid", 0, "pid of z-node")
-    fn = flag.String("func", "Stop", "function name")
+    fn = flag.String("func", "", "function name (must be specified)")
 )
 
 func init() {
@@ -25,6 +25,10 @@ func init() {
 }
 
 func main() {
+    if *fn == "" {
+        flag.Usage()
+        return
+    }
     conn, err := doozer.DialUri(*uri, *buri)
     if err != nil {
         log.Error(err)

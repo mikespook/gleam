@@ -13,6 +13,7 @@ var (
     uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
     buri = flag.String("dzns", "", "address of the DzNS")
     region = flag.String("region", "z-node", "a region of the z-node located in")
+    scriptPath = flag.String("script", "", "default script path")
 )
 
 func init() {
@@ -22,6 +23,15 @@ func init() {
     node.ErrHandler = func(err error) {
         log.Error(err)
     }
+
+    if *scriptPath == "" {
+        var err error
+        *scriptPath, err = os.Getwd()
+        if err != nil {
+            log.Error(err)
+        }
+    }
+    node.SetDefaultPath(*scriptPath)
 }
 
 func main() {
@@ -39,8 +49,7 @@ func main() {
     n.ErrHandler = node.ErrHandler
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
-//    n.Bind("Shell", ExecShell)
-//    n.Bind("PHP", ExecPHP)
+    n.Bind("Python", node.Python)
     if err := n.Start(*uri, *buri); err != nil {
         log.Error(err)
         return
