@@ -6,7 +6,7 @@ import (
     "time"
     "encoding/json"
     "github.com/mikespook/golib/log"
-    "github.com/skynetservices/doozer"
+    "github.com/ha/doozer"
     "github.com/mikespook/z-node/node"
 )
 

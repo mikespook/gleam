@@ -6,7 +6,7 @@ import (
     "sync"
     "time"
     "encoding/json"
-    "github.com/skynetservices/doozer"
+    "github.com/ha/doozer"
     "github.com/mikespook/golib/funcmap"
 )
 
