@@ -1,21 +1,24 @@
 Z-Node
 ======
 
-Z-Node is a task executing node based on [Doozer cluster](https://github.com/skynetservices/doozerd). It watch two files:
+Z-Node is a task executing cluster. It based on [Doozer cluster](https://github.com/ha/doozerd). 
+
+Every Z-Node watches two files:
 
  * $REGION/node/$HOST/$PID - for one-node tasks;
 
- * $REGION/wire - for broadcasting tasks.
+ * $REGION/wire - for cluster tasks.
 
 Theory
 ======
 
-Z-Node will register itself at `$REGION/info/$HOST/$PID` in Doozer.
-It watches the file `$REGION/node/$HOST/$PID`. If it was changed, Z-Node will notice it.
+Z-Node will register itself at `$REGION/info/$HOST/$PID` in Doozer. It watches the file `$REGION/node/$HOST/$PID`.
+When the file was changed, Z-Node will be notified.
 
-All of Z-Node are watching `$REGION/wire`. If this file was changed, all of Z-Node will notice it.
+All of Z-Nodes are watching the file `$REGION/wire`. When this file was changed, all of Z-Node also will be notified.
 
-The message is json encoded data with function name and paramaters. Z-Node will call the function with the paramaters.
+The message (the file contents) is json encoded data with the function name and paramaters.
+Z-Node would call the function with the paramaters.
 
     {
         Name: (string),
@@ -25,7 +28,7 @@ The message is json encoded data with function name and paramaters. Z-Node will 
 Dependencies
 ============
 
-[Doozer](https://github.com/skynetservices/doozer)
+[Doozer](https://github.com/ha/doozer)
 
 [Golib](https://github.com/mikespook/golib)    
 
@@ -39,6 +42,34 @@ Server node
 Client
 
 > $ go get github.com/mikespook/z-node/client
+
+Installing & Running
+====================
+
+All scripts were put in the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
+
+ * Install Go
+
+> $ ./golang-install.sh
+
+ * Install Doozerd
+
+> $ ./doozerd-install.sh start
+
+ * DZNS master node
+
+> $ ./dzns-master.sh start
+> $ ./dzns-master.sh stop
+
+ * DZNS node
+
+> $ ./dzns-node.sh start
+> $ ./dzns-node.sh stop
+
+ * Doozerd node
+ 
+> $ ./doozerd-node.sh start
+> $ ./doozerd-node.sh stop
 
 Authors
 =======
