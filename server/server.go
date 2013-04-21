@@ -9,11 +9,15 @@ import (
     "github.com/mikespook/golib/signal"
 )
 
+const (
+    SCRIPT_ROOT = "Z_NODE_SCRIPT_ROOT"
+)
+
 var (
     uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
     buri = flag.String("dzns", "", "address of the DzNS")
     region = flag.String("region", "z-node", "a region of the z-node located in")
-    scriptPath = flag.String("script", "", "default script path")
+    scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
 )
 
 func init() {
@@ -24,6 +28,9 @@ func init() {
         log.Error(err)
     }
 
+    if *scriptPath == "" {
+        *scriptPath = os.Getenv(SCRIPT_ROOT)
+    }
     if *scriptPath == "" {
         var err error
         *scriptPath, err = os.Getwd()
