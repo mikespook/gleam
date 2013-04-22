@@ -11,9 +11,9 @@ checkstatus()
 }
 HOST=127.0.0.1
 DZNS_PORT=9046
-DZNS_WEB=8000
-DZ_PORT=8046
-DZ_WEB=8001
+DZNS_WEB=9048
+DZ_PORT=8047
+DZ_WEB=8048
 
 echo 'Starting DZNS...'
 nohup doozerd -timeout 3 -l=$HOST:$DZNS_PORT -w=$HOST:$DZNS_WEB -c=dzns >/tmp/dzns.log 2>&1 &

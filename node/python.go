@@ -23,7 +23,7 @@ func init() {
     pyScriptMap = make(map[string]*pyScript)
 }
 
-func Python(name string, params ... interface{}) {
+func Python(name string, params ... interface{}) error {
     // check if the script has been loaded
     needLoad := false
     script, ok := pyScriptMap[name]
@@ -33,8 +33,7 @@ func Python(name string, params ... interface{}) {
         if isScriptErr(err) {
             pyScriptMap[name].code.Decref()
             delete(pyScriptMap, name)
-            _err(ErrLoadScript)
-            return
+            return ErrLoadScript
         }
         if m {
             needLoad = true
@@ -47,20 +46,19 @@ func Python(name string, params ... interface{}) {
     if needLoad {
         fi, contents, err := loadScript(name, "py")
         if isScriptErr(err) {
-            _err(ErrLoadScript)
-            return
+            return ErrLoadScript
         }
         code, err := py.Compile(contents, "", py.FileInput)
         if err != nil {
-            _err(err)
-            return
+            return err
         }
         pyScriptMap[name] = &pyScript{fi: fi, code: code}
     }
 
     mod, err := py.ExecCodeModule("z-node", pyScriptMap[name].code.Obj())
     if err != nil {
-        _err(err)
+        return err
     }
     defer mod.Decref()
+    return nil
 }

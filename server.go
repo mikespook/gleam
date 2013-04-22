@@ -56,7 +56,6 @@ func main() {
     n.ErrHandler = node.ErrHandler
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
-    n.Bind("Python", node.Python)
     if err := n.Start(*uri, *buri); err != nil {
         log.Error(err)
         return

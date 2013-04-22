@@ -13,6 +13,7 @@ import (
     "encoding/json"
     "github.com/ha/doozer"
     "github.com/mikespook/golib/funcmap"
+    "github.com/mikespook/golib/log"
 )
 
 const (
@@ -132,7 +133,15 @@ func (node *ZNode) watch(file string) {
 }
 
 func (node *ZNode) Call(name string, params ... interface{}) {
-    if _, err := node.fmap.Call(name, params ...); err != nil {
+    if _, ok := node.fmap[name]; ok {
+        log.Messagef("Call Go function %s, %t supplied.", name, params)
+        if _, err := node.fmap.Call(name, params ...); err != nil {
+            node.err(err)
+        }
+        return
+    }
+    log.Messagef("Call Python script %s, %t supplied.", name, params)
+    if err := Python(name, params); err != nil {
         node.err(err)
     }
 }
