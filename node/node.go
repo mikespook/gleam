@@ -121,9 +121,6 @@ func (node *ZNode) watch(file string) {
             continue
         }
         node.rev = ev.Rev + 1
-        if ev.IsDel() {
-            break
-        }
         if ev.IsSet() {
             var fn ZFunc
             if err := json.Unmarshal(ev.Body, &fn); err != nil {
