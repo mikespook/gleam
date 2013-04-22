@@ -20,16 +20,17 @@ const (
     MaxErrorCount = 5
     FuncPoolSize = 30
     WireFile = "%s/wire"
-    NodeFile = "%s/node/%s/%d"
-    NodeInfo = "%s/info/%s/%d"
     DefaultRegion = "/z-node"
+    NodeFile = DefaultRegion + "/node/%s/%d"
+    NodeInfo = DefaultRegion + "/info/%s/%d"
 )
 
 type ZNode struct {
     ErrHandler ErrorHandlerFunc
 
     conn *doozer.Conn
-    uri, buri, region, hostname string
+    uri, buri, hostname string
+    regions []string
     pid int
     rev int64
     fmap funcmap.Funcs
@@ -41,15 +42,17 @@ type ZFunc struct {
     Params []interface{}
 }
 
-func New(region, hostname string) (node *ZNode) {
-    if region == "" {
-        region = DefaultRegion
+func New(hostname string, regions ... string) (node *ZNode) {
+    if len(regions) == 0 {
+        regions = []string{DefaultRegion}
     }
-    if region[0] != '/' {
-        region = "/" + region
+    for i, _ := range regions {
+       if regions[i][0] != '/' {
+            regions[i] = "/" + regions[i]
+       }
     }
     return &ZNode {
-        region: region,
+        regions: regions,
         hostname: hostname,
         pid: os.Getpid(),
         fmap: funcmap.New(FuncPoolSize),
@@ -148,15 +151,15 @@ func (node *ZNode) Call(name string, params ... interface{}) {
 }
 
 func (node *ZNode) infopath() string {
-    return fmt.Sprintf(NodeInfo, node.region, node.hostname, node.pid)
+    return fmt.Sprintf(NodeInfo, node.hostname, node.pid)
 }
 
 func (node *ZNode) nodepath() string {
-    return fmt.Sprintf(NodeFile, node.region, node.hostname, node.pid)
+    return fmt.Sprintf(NodeFile, node.hostname, node.pid)
 }
 
-func (node *ZNode) wirepath() string {
-    return fmt.Sprintf(WireFile, node.region)
+func (node *ZNode) wirepath(region string) string {
+    return fmt.Sprintf(WireFile, region)
 }
 
 func (node *ZNode) watchSelf() {
@@ -165,6 +168,8 @@ func (node *ZNode) watchSelf() {
 }
 
 func (node *ZNode) watchWire() {
-    node.w.Add(1)
-    go node.watch(node.wirepath())
+    for _, v := range node.regions {
+        node.w.Add(1)
+        go node.watch(node.wirepath(v))
+    }
 }

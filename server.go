@@ -4,6 +4,7 @@ import (
     "os"
     "flag"
     "time"
+    "strings"
     "github.com/mikespook/golib/log"
     "github.com/mikespook/z-node/node"
     "github.com/mikespook/golib/signal"
@@ -16,7 +17,7 @@ const (
 var (
     uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
     buri = flag.String("dzns", "", "address of the DzNS")
-    region = flag.String("region", "z-node", "a region of the z-node located in")
+    region = flag.String("region", node.DefaultRegion, "a region of the z-node located in")
     scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
 )
 
@@ -52,7 +53,7 @@ func main() {
         log.Error(err)
         return
     }
-    n := node.New(*region, hostname)
+    n := node.New(hostname, strings.Split(*region, ":") ... )
     n.ErrHandler = node.ErrHandler
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
