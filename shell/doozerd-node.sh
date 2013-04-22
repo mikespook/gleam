@@ -18,7 +18,7 @@ start_doozer_node() {
     if [ $DZNS != $DZNS_NODE ]; then
         DZNS=$DZNS\&$DZNS_NODE
     fi
-    nohup $DAEMON -timeout $TIMEOUT -l $DOOZER_NODE -b="doozer:?ca=$DZNS" -w $DOOZER_NODE_WEB -c 'app'>>$DOOZER_NODE_LOG 2>&1 &
+    nohup $DAEMON -timeout $TIMEOUT -l $DOOZER_NODE -b="doozer:?ca=$DZNS" -w $DOOZER_NODE_WEB -c="$DOOZER_CN">>$DOOZER_NODE_LOG 2>&1 &
     set_doozer_node
 }
 

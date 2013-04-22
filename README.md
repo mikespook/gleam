@@ -76,6 +76,12 @@ All scripts were put in the directory [shell](https://github.com/mikespook/z-nod
 
 > $ ./doozerd-node.sh stop
 
+ * Z-Node
+
+> $ ./z-node.sh start
+
+> $ ./z-node.sh stop
+
 Authors
 =======
 

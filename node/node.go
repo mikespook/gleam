@@ -93,6 +93,7 @@ func (node *ZNode) Close() {
         node.err(err)
     }
     node.conn.Close()
+    zNodeMod.Decref()
 }
 
 func (node *ZNode) Wait() {
@@ -141,7 +142,7 @@ func (node *ZNode) Call(name string, params ... interface{}) {
         return
     }
     log.Messagef("Call Python script %s, %t supplied.", name, params)
-    if err := Python(name, params); err != nil {
+    if err := execPython(name, params ...); err != nil {
         node.err(err)
     }
 }

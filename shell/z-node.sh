@@ -14,11 +14,11 @@ set -e
 . /lib/lsb/init-functions
 
 start_z_node() {
-    nohup $Z_NODE -doozer="doozer:?ca=$DOOZER_NODE" -region 'app'>>$Z_NODE_LOG 2>&1 &
+    nohup $Z_NODE -doozer="doozer:?cn=$DOOZER_CN" -dzns="doozer:?ca=$DZNS_MASTER&$DZNS_NODE" -region="$DOOZER_CN">>$Z_NODE_LOG 2>&1 &
 }
 
 stop_z_node() {
-    PID=`ps -AF |grep $Z_NODE|awk '{print $2;}'`
+    PID=`ps -AF |grep -v grep|grep $Z_NODE|awk '{print $2;}'`
     if [ -n "$PID" ]; then
         kill $PID
     fi

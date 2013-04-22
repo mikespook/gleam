@@ -1,3 +1,6 @@
 #!/bin/python
 
-print "Hello world!"
+import znode
+
+znode.debug("hello")
+znode.debug("Args passed in: ", znode.args)
