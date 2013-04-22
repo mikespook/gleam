@@ -17,7 +17,7 @@ const (
 var (
     uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
     buri = flag.String("dzns", "", "address of the DzNS")
-    region = flag.String("region", node.DefaultRegion, "a region of the z-node located in")
+    region = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
     scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
 )
 
