@@ -5,20 +5,20 @@ Z-Node is a task executing cluster. It based on [Doozer cluster](https://github.
 
 Every Z-Node watches two files:
 
- * $REGION/node/$HOST/$PID - for one-node tasks;
+ * /z-node/node/$HOST/$PID - for one-node tasks;
 
  * $REGION/wire - for cluster tasks.
 
 Theory
 ======
 
-Z-Node will register itself at `$REGION/info/$HOST/$PID` in Doozer. It watches the file `$REGION/node/$HOST/$PID`.
+Z-Node will register itself at `/z-node/info/$HOST/$PID` in Doozer. It watches the file `/z-node/node/$HOST/$PID`.
 When the file was changed, Z-Node will be notified.
 
 All of Z-Nodes are watching the file `$REGION/wire`. When this file was changed, all of Z-Node also will be notified.
 
 The message (the file contents) is json encoded data with the function name and paramaters.
-Z-Node would call the function with the paramaters.
+Z-Node will call the function with the paramaters.
 
     {
         Name: (string),
