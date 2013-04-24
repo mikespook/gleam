@@ -19,10 +19,11 @@ import (
 const (
     MaxErrorCount = 5
     FuncPoolSize = 30
-    WireFile = "%s/wire"
-    DefaultRegion = "/z-node"
-    NodeFile = DefaultRegion + "/node/%s/%d"
-    NodeInfo = DefaultRegion + "/info/%s/%d"
+    DefaultRegion = "default"
+    Root = "/z-node"
+    WireFile = Root + "/%s/wire"
+    NodeFile = Root + "/node/%s/%d"
+    InfoFile = Root + "/info/%s/%d"
 )
 
 type ZNode struct {
@@ -30,9 +31,10 @@ type ZNode struct {
 
     conn *doozer.Conn
     uri, buri, hostname string
-    regions []string
-    pid int
     rev int64
+
+    wires []string
+    nodeFile, infoFile string
     fmap funcmap.Funcs
     w sync.WaitGroup
 }
@@ -42,19 +44,28 @@ type ZFunc struct {
     Params []interface{}
 }
 
+func MakeWire(region string) string {
+    return fmt.Sprintf(WireFile, region)
+}
+
+func MakeNode(file, hostname string, pid int) string {
+    return fmt.Sprintf(file, hostname, pid)
+}
+
 func New(hostname string, regions ... string) (node *ZNode) {
     if len(regions) == 0 {
         regions = []string{DefaultRegion}
     }
-    for i, _ := range regions {
-       if regions[i][0] != '/' {
-            regions[i] = "/" + regions[i]
-       }
+    for i, v := range regions {
+        regions[i] = MakeWire(v)
     }
+    pid := os.Getpid()
+    nodeFile := MakeNode(NodeFile, hostname, pid)
+    infoFile := MakeNode(InfoFile, hostname, pid)
     return &ZNode {
-        regions: regions,
-        hostname: hostname,
-        pid: os.Getpid(),
+        wires: regions,
+        nodeFile: nodeFile,
+        infoFile: infoFile,
         fmap: funcmap.New(FuncPoolSize),
     }
 }
@@ -74,7 +85,7 @@ func (node *ZNode) Start(uri, buri string) (err error) {
         return
     }
     if node.rev, err = node.conn.Set(
-        node.infopath(),
+        node.infoFile,
         node.rev, []byte(time.Now().String()));
         err != nil {
         return
@@ -86,12 +97,12 @@ func (node *ZNode) Start(uri, buri string) (err error) {
 
 func (node *ZNode) Close() {
     if err := node.conn.Del(
-        node.infopath(),
+        node.infoFile,
         node.rev); err != nil {
         node.err(err)
     }
     if err := node.conn.Del(
-        node.nodepath(),
+        node.nodeFile,
         node.rev); err != nil {
         node.err(err)
     }
@@ -147,26 +158,14 @@ func (node *ZNode) Call(name string, params ... interface{}) {
     }
 }
 
-func (node *ZNode) infopath() string {
-    return fmt.Sprintf(NodeInfo, node.hostname, node.pid)
-}
-
-func (node *ZNode) nodepath() string {
-    return fmt.Sprintf(NodeFile, node.hostname, node.pid)
-}
-
-func (node *ZNode) wirepath(region string) string {
-    return fmt.Sprintf(WireFile, region)
-}
-
 func (node *ZNode) watchSelf() {
     node.w.Add(1)
-    go node.watch(node.nodepath())
+    go node.watch(node.nodeFile)
 }
 
 func (node *ZNode) watchWire() {
-    for _, v := range node.regions {
+    for _, v := range node.wires {
         node.w.Add(1)
-        go node.watch(node.wirepath(v))
+        go node.watch(v)
     }
 }

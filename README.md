@@ -1,7 +1,7 @@
 Z-Node
 ======
 
-Z-Node is a task executing cluster. It based on [Doozer cluster](https://github.com/ha/doozerd). 
+Z-Node is a task cluster, working with [Doozer cluster](https://github.com/ha/doozerd) or [ZooKeeper cluster](http://zookeeper.apache.org/). 
 
 Every Z-Node watches two files:
 
@@ -28,59 +28,20 @@ Z-Node will call the function with the paramaters.
 Dependencies
 ============
 
-[Doozer](https://github.com/ha/doozer)
-
-[Golib](https://github.com/mikespook/golib)   
-
-[py](https://github.com/qiniu/py)
-
-Install
-=======
-
-Server node
-
-> $ go get github.com/mikespook/z-node/server
-
-Client
-
-> $ go get github.com/mikespook/z-node/client
+[Doozer](https://github.com/ha/doozer) [Golib](https://github.com/mikespook/golib) [py](https://github.com/qiniu/py) [gozk](https://github.com/petar/gozk)
 
 Installing & Running
 ====================
 
 All scripts were put in the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
 
- * Install Go
+Server node
 
-> $ ./golang-install.sh
+> $ go get github.com/mikespook/z-node
 
- * Install Doozerd
+Client
 
-> $ ./doozerd-install.sh start
-
- * DZNS master node
-
-> $ ./dzns-master.sh start
-
-> $ ./dzns-master.sh stop
-
- * DZNS node
-
-> $ ./dzns-node.sh start
-
-> $ ./dzns-node.sh stop
-
- * Doozerd node
- 
-> $ ./doozerd-node.sh start
-
-> $ ./doozerd-node.sh stop
-
- * Z-Node
-
-> $ ./z-node.sh start
-
-> $ ./z-node.sh stop
+> $ go get github.com/mikespook/z-node/client
 
 Authors
 =======

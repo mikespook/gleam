@@ -1,7 +1,6 @@
 package main
 
 import (
-    "fmt"
     "flag"
     "time"
     "encoding/json"
@@ -13,7 +12,8 @@ import (
 var (
     uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
     buri = flag.String("dzns", "", "address of the DzNS")
-    region = flag.String("region", "z-node", "a region of the z-node located in")
+    region = flag.String("region", "default", "a region of the z-node located in")
+    host = flag.String("host", "localhost", "hostname of z-node")
     pid = flag.Int("pid", 0, "pid of z-node")
     fn = flag.String("func", "", "function name (must be specified)")
 )
@@ -40,14 +40,11 @@ func main() {
         log.Error(err)
         return
     }
-    if (*region)[0] != '/' {
-        *region = "/" + *region
-    }
     var path string
     if *pid == 0 {
-       path = fmt.Sprintf("%s/wire", *region)
+       path = node.MakeWire(*region)
     } else {
-       path = fmt.Sprintf("%s/node/%d", *region, *pid)
+       path = node.MakeNode(node.NodeFile, *host, *pid)
     }
     params := make([]interface{}, flag.NArg())
     for i := 0; i < flag.NArg(); i ++ {
