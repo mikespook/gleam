@@ -11,7 +11,6 @@ import (
     "sync"
     "time"
     "encoding/json"
-    "github.com/ha/doozer"
     "github.com/mikespook/golib/funcmap"
     "github.com/mikespook/golib/log"
 )
@@ -24,14 +23,14 @@ const (
     WireFile = Root + "/%s/wire"
     NodeFile = Root + "/node/%s/%d"
     InfoFile = Root + "/info/%s/%d"
+    QUEUE_SIZE = 16
 )
 
 type ZNode struct {
     ErrHandler ErrorHandlerFunc
 
-    conn *doozer.Conn
-    uri, buri, hostname string
-    rev int64
+    conns []Conn
+    watcher chan []byte
 
     wires []string
     nodeFile, infoFile string
@@ -67,6 +66,8 @@ func New(hostname string, regions ... string) (node *ZNode) {
         nodeFile: nodeFile,
         infoFile: infoFile,
         fmap: funcmap.New(FuncPoolSize),
+        watcher: make(chan []byte, QUEUE_SIZE),
+        conns: make([]Conn, 0),
     }
 }
 
@@ -74,39 +75,44 @@ func (node *ZNode) Bind(name string, fn interface{}) (err error) {
     return node.fmap.Bind(name, fn)
 }
 
-func (node *ZNode) Start(uri, buri string) (err error) {
-    node.uri = uri
-    node.buri = buri
-
-    if node.conn, err = doozer.DialUri(node.uri, node.buri); err != nil {
-        return
-    }
-    if node.rev, err = node.conn.Rev(); err != nil {
-        return
-    }
-    if node.rev, err = node.conn.Set(
-        node.infoFile,
-        node.rev, []byte(time.Now().String()));
+func (node *ZNode) AddConn(conn Conn) (err error) {
+    if err = conn.Register(node.infoFile,
+        []byte(time.Now().String()));
         err != nil {
+        node.err(err)
         return
     }
-    node.watchSelf()
-    node.watchWire()
+    node.conns = append(node.conns, conn)
     return
 }
 
+func (node *ZNode) Start() {
+    node.watchSelf()
+    node.watchWire()
+    go node.loop()
+}
+
+func (node *ZNode) loop() {
+    for {
+        if data, ok := <-node.watcher; ok {
+            var fn ZFunc
+            if err := json.Unmarshal(data, &fn); err != nil {
+                node.err(err)
+                continue
+            }
+            go node.Call(fn.Name, fn.Params ...)
+        } else {
+            break
+        }
+    }
+}
+
 func (node *ZNode) Close() {
-    if err := node.conn.Del(
-        node.infoFile,
-        node.rev); err != nil {
-        node.err(err)
+    for _, c := range node.conns {
+        if err := c.Close(); err != nil {
+            node.err(err)
+        }
     }
-    if err := node.conn.Del(
-        node.nodeFile,
-        node.rev); err != nil {
-        node.err(err)
-    }
-    node.conn.Close()
     zNodeMod.Decref()
 }
 
@@ -121,24 +127,17 @@ func (node *ZNode) err(err error) {
 }
 
 func (node *ZNode) watch(file string) {
-    defer node.w.Done()
-    for i := 0; i < MaxErrorCount; i ++ {
-        ev, err := node.conn.Wait(file, node.rev)
-        if err != nil {
-            if err == doozer.ErrClosed {
-                break
-            }
-            node.err(err)
-            continue
-        }
-        node.rev = ev.Rev + 1
-        if ev.IsSet() {
-            var fn ZFunc
-            if err := json.Unmarshal(ev.Body, &fn); err != nil {
+    for _, c := range node.conns {
+        node.w.Add(1)
+        defer node.w.Done()
+        for i := 0; i < MaxErrorCount; i ++ {
+            if err := c.Watch(file, node.watcher); err != nil {
+                if err == ErrConnection {
+                    break
+                }
                 node.err(err)
                 continue
             }
-            go node.Call(fn.Name, fn.Params ...)
             i = 0
         }
     }
@@ -146,26 +145,24 @@ func (node *ZNode) watch(file string) {
 
 func (node *ZNode) Call(name string, params ... interface{}) {
     if _, ok := node.fmap[name]; ok {
-        log.Messagef("Call Go function %s, %t supplied.", name, params)
+        log.Debugf("Call Go function %s, %t supplied.", name, params)
         if _, err := node.fmap.Call(name, params ...); err != nil {
             node.err(err)
         }
         return
     }
-    log.Messagef("Call Python script %s, %t supplied.", name, params)
+    log.Debugf("Call Python script %s, %t supplied.", name, params)
     if err := execPython(name, params ...); err != nil {
         node.err(err)
     }
 }
 
 func (node *ZNode) watchSelf() {
-    node.w.Add(1)
     go node.watch(node.nodeFile)
 }
 
 func (node *ZNode) watchWire() {
     for _, v := range node.wires {
-        node.w.Add(1)
         go node.watch(v)
     }
 }

@@ -15,8 +15,9 @@ const (
 )
 
 var (
-    uri = flag.String("doozer", "doozer:?ca=127.0.0.1:8046", "address of the doozerd")
-    buri = flag.String("dzns", "", "address of the DzNS")
+    dzuri = flag.String("doozer", "", "address of the doozerd")
+    dzburi = flag.String("dzns", "", "address of the DzNS")
+    zk = flag.String("zk", "", "address of the ZooKeeper")
     region = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
     scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
 )
@@ -55,12 +56,15 @@ func main() {
     }
     n := node.New(hostname, strings.Split(*region, ":") ... )
     n.ErrHandler = node.ErrHandler
-    n.Bind("Stop", node.Stop)
-    n.Bind("Restart", node.Restart)
-    if err := n.Start(*uri, *buri); err != nil {
+    d, err := node.NewDoozer(*uri, *buri)
+    if err != nil {
         log.Error(err)
         return
     }
+    n.AddConn(d)
+    n.Bind("Stop", node.Stop)
+    n.Bind("Restart", node.Restart)
+    n.Start()
     defer n.Close()
     go func() {
         n.Wait()
