@@ -39,12 +39,13 @@ Installing & Running
 All useful scripts were put at the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
 
 Server node
+-----------
 
     $ cd github.com/mikespook/z-node
     $ go build
     $ z-node -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -script="./script"
 
-__Notice__
+__Note__
 
  1. When `-dzns` was assigned, `-doozer` also must be specified.
 
@@ -59,6 +60,7 @@ __Notice__
  5. Params `-doozer` and `-zk` must be specified one or either.
 
 Client
+------
 
     $ cd github.com/mikespook/z-node/client
     $ go build
