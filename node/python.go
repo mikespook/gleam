@@ -7,7 +7,6 @@ package node
 
 import (
     "os"
-    "errors"
     "reflect"
     "github.com/qiniu/py"
     "github.com/mikespook/golib/log"
@@ -18,9 +17,9 @@ type pyScript struct {
     code *py.Code
 }
 
-type ZNodeModule struct {}
+type Module struct {}
 
-func (m *ZNodeModule) paserArgs(args *py.Tuple) string {
+func (m *Module) paserArgs(args *py.Tuple) string {
     var msg string
     for i := 0; i < args.Size(); i ++ {
         if item, err := args.GetItem(i); err == nil {
@@ -30,22 +29,22 @@ func (m *ZNodeModule) paserArgs(args *py.Tuple) string {
     return msg
 }
 
-func (m *ZNodeModule) Py_debug(args *py.Tuple) (ret *py.Base, err error) {
+func (m *Module) Py_debug(args *py.Tuple) (ret *py.Base, err error) {
     log.Debug(m.paserArgs(args))
     return py.IncNone(), nil
 }
 
-func (m *ZNodeModule) Py_msg(args *py.Tuple) (ret *py.Base, err error) {
+func (m *Module) Py_msg(args *py.Tuple) (ret *py.Base, err error) {
     log.Message(m.paserArgs(args))
     return py.IncNone(), nil
 }
 
-func (m *ZNodeModule) Py_warning(args *py.Tuple) (ret *py.Base, err error) {
+func (m *Module) Py_warning(args *py.Tuple) (ret *py.Base, err error) {
     log.Warning(m.paserArgs(args))
     return py.IncNone(), nil
 }
 
-func (m *ZNodeModule) Py_error(args *py.Tuple) (ret *py.Base, err error) {
+func (m *Module) Py_error(args *py.Tuple) (ret *py.Base, err error) {
     log.Errorf("%s", m.paserArgs(args))
     return py.IncNone(), nil
 }
@@ -53,21 +52,33 @@ func (m *ZNodeModule) Py_error(args *py.Tuple) (ret *py.Base, err error) {
 var (
     pyScriptMap map[string]*pyScript
     zNodeMod py.GoModule
-    ErrPyArgsOutOfBound = errors.New("Python args out of bound")
-    ErrPyArgs = errors.New("Not support type")
+    zDict *py.Base
 )
 
-func init() {
+func PyInit() (err error) {
+    py.Initialize()
     pyScriptMap = make(map[string]*pyScript)
-    var err error
-    zNodeMod, err = py.NewGoModule("znode", "", new(ZNodeModule))
+    zNodeMod, err = py.NewGoModule("znode", "", new(Module))
     if err != nil {
-        log.Error(err)
-        os.Exit(-1)
+        return
     }
+
+    d := py.NewDict()
+    if err = d.SetItemString("__builtins__", py.GetBuiltins());
+        err != nil {
+        return
+    }
+    zDict = d.Obj()
+    return
 }
 
-func execPython(name string, params ... interface{}) error {
+func PyClose() {
+    zNodeMod.Decref()
+    zDict.Decref()
+    py.Finalize()
+}
+
+func PyExec(name string, params ... interface{}) error {
     // check if the script has been loaded
     needLoad := false
     script, ok := pyScriptMap[name]
@@ -81,6 +92,7 @@ func execPython(name string, params ... interface{}) error {
         }
         if m {
             needLoad = true
+            pyScriptMap[name].code.Decref()
         }
     } else {
         needLoad = true
@@ -92,7 +104,7 @@ func execPython(name string, params ... interface{}) error {
         if isScriptErr(err) {
             return ErrLoadScript
         }
-        code, err := py.Compile(contents, "", py.FileInput)
+        code, err := py.Compile(contents, name, py.FileInput)
         if err != nil {
             return err
         }
@@ -106,23 +118,24 @@ func execPython(name string, params ... interface{}) error {
             return err
         }
     }
-    if err := zNodeMod.AddObject("args", args.Obj()); err != nil {
-        return err
-    }
+    defer args.Decref()
 
-    // exec
-    mod, err := py.ExecCodeModule("znode-exec", pyScriptMap[name].code.Obj())
-    if err != nil {
+    locals := py.NewDict()
+    if err := locals.SetItemString("args", args.Obj()); err != nil {
         return err
     }
-    defer mod.Decref()
+    defer locals.Decref()
+
+    if err := pyScriptMap[name].code.Run(zDict, locals.Obj()); err != nil {
+        return err
+    }
     return nil
 }
 
 func parsePyArgs(arg interface{}) (item *py.Base) {
     r := reflect.ValueOf(arg)
     switch r.Kind() {
-        case reflect.Bool, reflect.Int, reflect.Int16, reflect.Int32,
+    case reflect.Bool, reflect.Int, reflect.Int16, reflect.Int32,
         reflect.Uint, reflect.Uint16, reflect.Uint32,
         reflect.Int64, reflect.Uint64:
         item = py.NewInt64(r.Int()).Obj()

@@ -9,13 +9,10 @@ Every Z-Node watches two files:
 
  * $REGION/wire - for cluster tasks.
 
-Theory
-======
-
-Z-Node will register itself at `/z-node/info/$HOST/$PID` in Doozer. It watches the file `/z-node/node/$HOST/$PID`.
+Z-Node will register itself as file `/z-node/info/$HOST/$PID` with the informations. And it watches the file `/z-node/node/$HOST/$PID` for node tasks.
 When the file was changed, Z-Node will be notified.
 
-All of Z-Nodes are watching the file `$REGION/wire`. When this file was changed, all of Z-Node also will be notified.
+All of Z-Nodes watch the file `$REGION/wire` for cluster tasks. When the file is changed, all of Z-Nodes will be notified.
 
 The message (the file contents) is json encoded data with the function name and paramaters.
 Z-Node will call the function with the paramaters.
@@ -28,20 +25,44 @@ Z-Node will call the function with the paramaters.
 Dependencies
 ============
 
-[Doozer](https://github.com/ha/doozer) [Golib](https://github.com/mikespook/golib) [py](https://github.com/qiniu/py) [gozk](https://github.com/petar/gozk)
+ * [Doozer](https://github.com/ha/doozer) 
+
+ * [Golib](https://github.com/mikespook/golib)
+ 
+ * [py](https://github.com/qiniu/py)
+
+ * [gozk](https://github.com/petar/gozk)
 
 Installing & Running
 ====================
 
-All scripts were put in the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
+All useful scripts were put at the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
 
 Server node
 
-> $ go get github.com/mikespook/z-node
+    $ cd github.com/mikespook/z-node
+    $ go build
+    $ z-node -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -script="./script"
+
+__Notice__
+
+ 1. When `-dzns` was assigned, `-doozer` also must be specified.
+
+ 2. Use Doozer's URI format for doozer's connection.
+    * `doozer:?ca=$IP:$PORT`: both for `-dzns` and `-doozer`
+    * `doozer:?cn=$CLUSTER_NAME`: `-doozer` only
+
+ 3. Use ':' as the separator for multi-regions. E.g. `-region=a:b:c` specified 3 regions "a", "b" and "c".
+
+ 4. Set the enviroment variable `$Z_NODE_SCRIPT_ROOT` for the Z-Node's script searching path. The param `-script` will recover this variable. If both of them were empty, the current directory was set as default.
+
+ 5. Params `-doozer` and `-zk` must be specified one or either.
 
 Client
 
-> $ go get github.com/mikespook/z-node/client
+    $ cd github.com/mikespook/z-node/client
+    $ go build
+    $ ./client -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -func=test abc def 123 456
 
 Authors
 =======

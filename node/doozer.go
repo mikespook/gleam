@@ -40,7 +40,7 @@ func (d *Doozer) Connect(params ... string) (err error) {
 
 func (d *Doozer) Register(file string, info []byte) (err error) {
     d.infoFile = file
-    d.rev, err = d.conn.Set(file, d.rev, info)
+    d.rev, err = d.conn.Set(d.infoFile, d.rev, info)
     return
 }
 

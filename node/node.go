@@ -12,7 +12,6 @@ import (
     "time"
     "encoding/json"
     "github.com/mikespook/golib/funcmap"
-    "github.com/mikespook/golib/log"
 )
 
 const (
@@ -26,8 +25,11 @@ const (
     QUEUE_SIZE = 16
 )
 
+type ZFuncCall func(string, ... interface{}) error
+
 type ZNode struct {
     ErrHandler ErrorHandlerFunc
+    ScriptHandler ZFuncCall
 
     conns []Conn
     watcher chan []byte
@@ -145,15 +147,15 @@ func (node *ZNode) watch(file string) {
 
 func (node *ZNode) Call(name string, params ... interface{}) {
     if _, ok := node.fmap[name]; ok {
-        log.Debugf("Call Go function %s, %t supplied.", name, params)
         if _, err := node.fmap.Call(name, params ...); err != nil {
             node.err(err)
         }
         return
     }
-    log.Debugf("Call Python script %s, %t supplied.", name, params)
-    if err := execPython(name, params ...); err != nil {
-        node.err(err)
+    if node.ScriptHandler != nil {
+        if err := node.ScriptHandler(name, params ...); err != nil {
+            node.err(err)
+       }
     }
 }
 
