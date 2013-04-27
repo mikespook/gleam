@@ -38,7 +38,7 @@ func (zk *ZooKeeper) Register(file string, info []byte) (err error) {
 }
 
 func (zk *ZooKeeper) Close() (err error) {
-    return
+    return zk.conn.Close()
 }
 
 func (zk *ZooKeeper) Watch(file string, watcher chan<- []byte) (err error) {

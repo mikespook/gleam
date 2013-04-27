@@ -11,7 +11,6 @@ import (
 
 type Doozer struct {
     conn *doozer.Conn
-    uri, buri string
     rev int64
     infoFile string
 }
@@ -23,10 +22,7 @@ func NewDoozer(uri, buri string) (d *Doozer, err error) {
 }
 
 func (d *Doozer) connect(uri, buri string) (err error) {
-    d.uri = uri
-    d.buri = buri
-
-    if d.conn, err = doozer.DialUri(d.uri, d.buri); err != nil {
+    if d.conn, err = doozer.DialUri(uri, buri); err != nil {
         return
     }
     if d.rev, err = d.conn.Rev(); err != nil {

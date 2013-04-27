@@ -23,6 +23,3 @@ echo 'Starting doozerd...'
 nohup doozerd -timeout 3 -l=$HOST:$DZ_PORT -w=$HOST:$DZ_WEB -c=app -b=doozer:?ca=$HOST:$DZNS_PORT >/tmp/doozer.log 2>&1 &
 checkstatus $HOST $DZ_PORT
 echo 'Done!'
-
-export CGO_CFLAGS="-I/usr/include/zookeeper"
-export CGO_LDFLAGS="-lzookeeper_mt -lev"
