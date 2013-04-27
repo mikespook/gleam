@@ -6,7 +6,6 @@
 package node
 
 type Conn interface {
-    Connect(params ... string) error
     Register(file string, info []byte) error
     Close() error
     Watch(file string, watcher chan<- []byte) error

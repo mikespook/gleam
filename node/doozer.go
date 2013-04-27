@@ -18,16 +18,13 @@ type Doozer struct {
 
 func NewDoozer(uri, buri string) (d *Doozer, err error) {
     d = new(Doozer)
-    err = d.Connect(uri, buri)
+    err = d.connect(uri, buri)
     return
 }
 
-func (d *Doozer) Connect(params ... string) (err error) {
-    if len(params) != 2 {
-        return ErrParam
-    }
-    d.uri = params[0]
-    d.buri = params[1]
+func (d *Doozer) connect(uri, buri string) (err error) {
+    d.uri = uri
+    d.buri = buri
 
     if d.conn, err = doozer.DialUri(d.uri, d.buri); err != nil {
         return

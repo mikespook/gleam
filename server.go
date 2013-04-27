@@ -17,7 +17,7 @@ const (
 var (
     dzuri = flag.String("doozer", "", "address of the doozerd, must be specified as `cn` when -dzns was assigned")
     dzburi = flag.String("dzns", "", "address of the DzNS")
-    zk = flag.String("zk", "", "address of the ZooKeeper, one of -doozer and -zk must be specified")
+    zk = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
     region = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
     scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
 )
@@ -81,12 +81,24 @@ func main() {
     defer node.PyClose()
     n.ScriptHandler = node.PyExec
 
-    d, err := node.NewDoozer(*dzuri, *dzburi)
-    if err != nil {
-        log.Error(err)
-        return
+    if *dzuri != "" {
+        d, err := node.NewDoozer(*dzuri, *dzburi)
+        if err != nil {
+            log.Error(err)
+            return
+        }
+        n.AddConn(d)
     }
-    n.AddConn(d)
+
+    if *zk != "" {
+        z, err := node.NewZooKeeper(*zk)
+        if err != nil {
+            log.Error(err)
+            return
+        }
+        n.AddConn(z)
+    }
+
     n.Bind("Stop", node.Stop)
     n.Bind("Restart", node.Restart)
     n.Start()
