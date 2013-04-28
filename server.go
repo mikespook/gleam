@@ -82,6 +82,7 @@ func main() {
     n.ScriptHandler = node.PyExec
 
     if *dzuri != "" {
+        log.Messagef("Connect to Doozerd: dzns = %s, doozer = %s", *dzburi, *dzuri)
         d, err := node.NewDoozer(*dzuri, *dzburi)
         if err != nil {
             log.Error(err)
@@ -91,6 +92,7 @@ func main() {
     }
 
     if *zk != "" {
+        log.Messagef("Connect to ZooKeeper: zk = %s", *zk)
         z, err := node.NewZooKeeper(*zk)
         if err != nil {
             log.Error(err)

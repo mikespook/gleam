@@ -38,12 +38,23 @@ Installing & Running
 
 All useful scripts were put at the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
 
+Befor building, the proper ZooKeeper libraries and headers must be installed .
+E.g. Ubuntu 12.10, the package `libzookeeper-mt-dev` must be installed. 
+
+The ZooKeeper package use cgo to communicat with ZooKeeper server.
+
+This two environment variables must be set (On Ubuntu 12.10):
+
+    $ export CGO_CFLAGS="-I/usr/include/zookeeper"
+    $ export CGO_LDFLAGS="-lzookeeper_mt"
+
 Server node
 -----------
 
     $ cd github.com/mikespook/z-node
     $ go build
-    $ z-node -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -script="./script"
+    $ ./z-node -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -script="./script"
+    $ ./z-node -zk="127.0.0.1:2181" -script="./script" -region="op:testing:backup"
 
 __Note__
 
@@ -65,6 +76,7 @@ Client
     $ cd github.com/mikespook/z-node/client
     $ go build
     $ ./client -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -func=test abc def 123 456
+    $ ./client -zk="127.0.0.1:2181" -func=test -region=testing
 
 Authors
 =======

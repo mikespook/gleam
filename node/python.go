@@ -75,7 +75,7 @@ func PyInit() (err error) {
 func PyClose() {
     zNodeMod.Decref()
     zDict.Decref()
-    py.Finalize()
+    //py.Finalize()
 }
 
 func PyExec(name string, params ... interface{}) error {
