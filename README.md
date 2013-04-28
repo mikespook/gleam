@@ -7,12 +7,12 @@ Every Z-Node watches two files:
 
  * /z-node/node/$HOST/$PID - for one-node tasks;
 
- * $REGION/wire - for cluster tasks.
+ * /z-node/$REGION/wire - for cluster tasks.
 
 Z-Node will register itself as file `/z-node/info/$HOST/$PID` with the informations. And it watches the file `/z-node/node/$HOST/$PID` for node tasks.
 When the file was changed, Z-Node will be notified.
 
-All of Z-Nodes watch the file `$REGION/wire` for cluster tasks. When the file is changed, all of Z-Nodes will be notified.
+All of Z-Nodes watch the file `/z-node/$REGION/wire` for cluster tasks. When the file is changed, all of Z-Nodes will be notified.
 
 The message (the file contents) is json encoded data with the function name and paramaters.
 Z-Node will call the function with the paramaters.
