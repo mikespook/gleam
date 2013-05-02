@@ -14,7 +14,7 @@ import (
 
 type pyScript struct {
     fi os.FileInfo
-    code *py.Code
+    code string
 }
 
 type Module struct {}
@@ -86,13 +86,11 @@ func PyExec(name string, params ... interface{}) error {
         // if it was modified
         m, err := ifScriptModified(name, script.fi.ModTime(), "py")
         if isScriptErr(err) {
-            pyScriptMap[name].code.Decref()
             delete(pyScriptMap, name)
             return ErrLoadScript
         }
         if m {
             needLoad = true
-            pyScriptMap[name].code.Decref()
         }
     } else {
         needLoad = true
@@ -104,11 +102,7 @@ func PyExec(name string, params ... interface{}) error {
         if isScriptErr(err) {
             return ErrLoadScript
         }
-        code, err := py.Compile(contents, name, py.FileInput)
-        if err != nil {
-            return err
-        }
-        pyScriptMap[name] = &pyScript{fi: fi, code: code}
+        pyScriptMap[name] = &pyScript{fi: fi, code: contents}
     }
 
     // init module args
@@ -126,7 +120,12 @@ func PyExec(name string, params ... interface{}) error {
     }
     defer locals.Decref()
 
-    if err := pyScriptMap[name].code.Run(zDict, locals.Obj()); err != nil {
+    code, err := py.Compile(pyScriptMap[name].code, name, py.FileInput)
+    if err != nil {
+        return err
+    }
+
+    if err := code.Run(zDict, locals.Obj()); err != nil {
         return err
     }
     return nil
