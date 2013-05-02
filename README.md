@@ -1,7 +1,9 @@
 Z-Node
 ======
 
-Z-Node is a task cluster, working with [Doozer cluster](https://github.com/ha/doozerd) or [ZooKeeper cluster](http://zookeeper.apache.org/). 
+Z-Node is a cluster for helping operations. It works with 
+[Doozer cluster](https://github.com/ha/doozerd) and 
+[ZooKeeper cluster](http://zookeeper.apache.org/). 
 
 Every Z-Node watches two files:
 
@@ -9,13 +11,16 @@ Every Z-Node watches two files:
 
  * /z-node/$REGION/wire - for cluster tasks.
 
-Z-Node will register itself as file `/z-node/info/$HOST/$PID` with the informations. And it watches the file `/z-node/node/$HOST/$PID` for node tasks.
-When the file was changed, Z-Node will be notified.
+Z-Node will register itself as file `/z-node/info/$HOST/$PID` with running 
+informations. It watches the file `/z-node/node/$HOST/$PID` for one-node 
+tasks. When the file was changed, Z-Node will be notified.
 
-All of Z-Nodes watch the file `/z-node/$REGION/wire` for cluster tasks. When the file is changed, all of Z-Nodes will be notified.
+All of Z-Nodes watch the file `/z-node/$REGION/wire` for cluster tasks.
+When the file is changed, all of Z-Nodes will be notified.
 
-The message (the file contents) is json encoded data with the function name and paramaters.
-Z-Node will call the function with the paramaters.
+The message (the file contents) is encoded data (Default by 
+[JSON](http://www.json.org/)) with the function name and paramaters. Z-Node 
+will call the function with the paramaters.
 
     {
         Name: (string),

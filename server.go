@@ -20,6 +20,7 @@ var (
     zk = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
     region = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
     scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
+    encoding = flag.String("encoding", "json", "encoding of task message (JSON as default)")
 )
 
 func init() {
@@ -82,7 +83,7 @@ func main() {
     n.ScriptHandler = node.PyExec
 
     if *dzuri != "" {
-        log.Messagef("Connect to Doozerd: dzns = %s, doozer = %s", *dzburi, *dzuri)
+        log.Messagef("Connect to Doozerd: dzns=[%s], doozer=[%s]", *dzburi, *dzuri)
         d, err := node.NewDoozer(*dzuri, *dzburi)
         if err != nil {
             log.Error(err)
@@ -92,13 +93,22 @@ func main() {
     }
 
     if *zk != "" {
-        log.Messagef("Connect to ZooKeeper: zk = %s", *zk)
+        log.Messagef("Connect to ZooKeeper: zk=[%s]", *zk)
         z, err := node.NewZooKeeper(*zk)
         if err != nil {
             log.Error(err)
             return
         }
         n.AddConn(z)
+    }
+
+    switch *encoding {
+        case "gob":
+            n.DecodeHandler = node.GobDecoder
+        case "json":
+            fallthrough
+        default:
+            n.DecodeHandler = node.JSONDecoder
     }
 
     n.Bind("Stop", node.Stop)

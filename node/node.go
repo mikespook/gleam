@@ -10,7 +10,6 @@ import (
     "fmt"
     "sync"
     "time"
-    "encoding/json"
     "github.com/mikespook/golib/funcmap"
 )
 
@@ -25,11 +24,12 @@ const (
     QUEUE_SIZE = 16
 )
 
-type ZFuncCall func(string, ... interface{}) error
+type ZFuncHandler func(string, ... interface{}) error
 
 type ZNode struct {
     ErrHandler ErrorHandlerFunc
-    ScriptHandler ZFuncCall
+    ScriptHandler ZFuncHandler
+    DecodeHandler ZDecodeHandler
 
     conns []Conn
     watcher chan []byte
@@ -95,10 +95,13 @@ func (node *ZNode) Start() {
 }
 
 func (node *ZNode) loop() {
+    if node.DecodeHandler == nil {
+        node.DecodeHandler = JSONDecoder
+    }
     for {
         if data, ok := <-node.watcher; ok {
             var fn ZFunc
-            if err := json.Unmarshal(data, &fn); err != nil {
+            if err := node.DecodeHandler(data, &fn); err != nil {
                 node.err(err)
                 continue
             }

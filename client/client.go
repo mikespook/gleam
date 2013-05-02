@@ -4,7 +4,6 @@ import (
     "os"
     "flag"
     "time"
-    "encoding/json"
     "github.com/mikespook/golib/log"
     "github.com/ha/doozer"
     "github.com/mikespook/z-node/node"
@@ -19,6 +18,8 @@ var (
     host = flag.String("host", "localhost", "hostname of z-node")
     pid = flag.Int("pid", 0, "pid of z-node")
     fn = flag.String("func", "", "function name (must be specified)")
+    encoding = flag.String("encoding", "json", "encoding of task message (JSON as default)")
+    encodeHandler func(*node.ZFunc) ([]byte, error)
 )
 
 func init() {
@@ -46,16 +47,37 @@ func init() {
 }
 
 func main() {
+    switch *encoding {
+        case "gob":
+            encodeHandler = node.GobEncoder
+        case "json":
+            fallthrough
+        default:
+            encodeHandler = node.JSONEncoder
+    }
+
+    var path string
+    if *pid == 0 {
+       path = node.MakeWire(*region)
+    } else {
+       path = node.MakeNode(node.NodeFile, *host, *pid)
+    }
+    params := make([]interface{}, flag.NArg())
+    for i := 0; i < flag.NArg(); i ++ {
+        params[i] = interface{}(flag.Arg(i))
+    }
+
     if *dzuri != "" {
-        doozerd()
+        doozerd(path, params)
     }
 
     if *zkuri != "" {
-        zk()
+        zk(path, params)
     }
+    time.Sleep(time.Second)
 }
 
-func doozerd() {
+func doozerd(path string, params []interface{}) {
     conn, err := doozer.DialUri(*dzuri, *dzburi)
     if err != nil {
         log.Error(err)
@@ -67,18 +89,8 @@ func doozerd() {
         log.Error(err)
         return
     }
-    var path string
-    if *pid == 0 {
-       path = node.MakeWire(*region)
-    } else {
-       path = node.MakeNode(node.NodeFile, *host, *pid)
-    }
-    params := make([]interface{}, flag.NArg())
-    for i := 0; i < flag.NArg(); i ++ {
-        params[i] = interface{}(flag.Arg(i))
-    }
     f := &node.ZFunc{Name: *fn, Params: params}
-    body, err := json.Marshal(f)
+    body, err := encodeHandler(f)
     if err != nil {
         log.Error(err)
         return
@@ -89,10 +101,9 @@ func doozerd() {
         return
     }
     log.Messagef("Rev: %d", rev)
-    time.Sleep(time.Second)
 }
 
-func zk() {
+func zk(path string, params []interface{}) {
     conn, zch, err := zookeeper.Dial(*zkuri, 5e9)
     if err != nil {
         log.Error(err)
@@ -104,20 +115,9 @@ func zk() {
         log.Errorf("Event state error: %d", event.State)
         return
     }
-    var path string
-    if *pid == 0 {
-       path = node.MakeWire(*region)
-    } else {
-       path = node.MakeNode(node.NodeFile, *host, *pid)
-    }
-
-    params := make([]interface{}, flag.NArg())
-    for i := 0; i < flag.NArg(); i ++ {
-        params[i] = interface{}(flag.Arg(i))
-    }
 
     f := &node.ZFunc{Name: *fn, Params: params}
-    body, err := json.Marshal(f)
+    body, err := encodeHandler(f)
     if err != nil {
         log.Error(err)
         return
@@ -131,5 +131,4 @@ func zk() {
         return
     }
     log.Messagef("Rev: %d", stat.Version())
-    time.Sleep(time.Second)
 }
