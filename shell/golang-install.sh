@@ -4,10 +4,12 @@
 
 check_base_env
 
-apt-get install -y gcc libc6-dev mercurial
-if [ "$?" != "0" ]; then 
-	echo "error, check your network!"
-	exit 1
+if [[ $EUID -e 0 ]]; then
+    apt-get install -y gcc libc6-dev mercurial
+    if [ "$?" != "0" ]; then 
+    	echo "error, check your network!"
+    	exit 1
+    fi
 fi
 
 # init the environment
@@ -23,9 +25,14 @@ export GOPATH=$SERVICE_BASE/go/3rdpkg:$SERVICE_BASE/go/own:$GOROOT
 export GOTOOLDIR=$GOROOT/pkg/tool
 
 if [ $SERVICE_BASE == $HOME ]; then
-    config=$SERVICE_BASE/.bashrc
+    config=$SERVICE_BASE/.profile
 else
-    config=/etc/bash.bashrc
+    PROFILE=/etc/profile.d
+    if [ -d $PROFILE ]; then
+        config=$PROFILE/golang.sh
+    else
+        config=/etc/profile
+    fi
 fi
 
 sed -i -e "/^$/d" $config
@@ -48,14 +55,17 @@ cd $SERVICE_BASE/go
 rm -rf golang
 hg clone -u release https://code.google.com/p/go
 if [ "$?" != "0" ]; then 
-	echo "error, check your network or your hosts."
+	echo "error, check your network."
 	exit 1
 fi
 
 cd $GOROOT/src/
 ./all.bash
 
-. $config
+if [ "$?" != "0" ]; then 
+	echo "error, build golang faild."
+	exit 1
+fi
 
 echo <<EOF 
 Golang was installed at $SERVICE_BASE/go/golang.
