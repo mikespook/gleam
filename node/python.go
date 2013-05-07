@@ -50,33 +50,9 @@ func (m *Module) Py_error(args *py.Tuple) (ret *py.Base, err error) {
 }
 
 var (
-    pyScriptMap map[string]*pyScript
-    zNodeMod py.GoModule
-    zDict *py.Base
-)
-
-func PyInit() (err error) {
-    py.Initialize()
     pyScriptMap = make(map[string]*pyScript)
-    zNodeMod, err = py.NewGoModule("znode", "", new(Module))
-    if err != nil {
-        return
-    }
-
-    d := py.NewDict()
-    if err = d.SetItemString("__builtins__", py.GetBuiltins());
-        err != nil {
-        return
-    }
-    zDict = d.Obj()
-    return
-}
-
-func PyClose() {
-    zNodeMod.Decref()
-    zDict.Decref()
-    //py.Finalize()
-}
+    zNodeMod = new(Module)
+)
 
 func PyExec(name string, params ... interface{}) error {
     // check if the script has been loaded
@@ -105,6 +81,21 @@ func PyExec(name string, params ... interface{}) error {
         pyScriptMap[name] = &pyScript{fi: fi, code: contents}
     }
 
+    py.Initialize()
+    // znode module
+    pyMod, err := py.NewGoModule("znode", "", zNodeMod)
+    if err != nil {
+        return err
+    }
+    defer pyMod.Decref()
+
+    d := py.NewDict()
+    if err := d.SetItemString("__builtins__", py.GetBuiltins());
+        err != nil {
+        return err
+    }
+    defer d.Decref()
+
     // init module args
     args := py.NewTuple(len(params))
     for i, v := range params {
@@ -124,8 +115,9 @@ func PyExec(name string, params ... interface{}) error {
     if err != nil {
         return err
     }
+    defer code.Decref()
 
-    if err := code.Run(zDict, locals.Obj()); err != nil {
+    if err := code.Run(d.Obj(), locals.Obj()); err != nil {
         return err
     }
     return nil

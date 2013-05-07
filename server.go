@@ -74,12 +74,6 @@ func main() {
     }
     n := node.New(hostname, strings.Split(*region, ":") ... )
     n.ErrHandler = node.ErrHandler
-
-    if err := node.PyInit(); err != nil {
-        log.Error(err)
-        return
-    }
-    defer node.PyClose()
     n.ScriptHandler = node.PyExec
 
     if *dzuri != "" {

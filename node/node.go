@@ -118,7 +118,6 @@ func (node *ZNode) Close() {
             node.err(err)
         }
     }
-    zNodeMod.Decref()
 }
 
 func (node *ZNode) Wait() {
