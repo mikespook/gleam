@@ -52,8 +52,6 @@ func init() {
             return
         }
     }
-    node.SetDefaultPath(*scriptPath)
-
     node.ErrHandler = func(err error) {
         log.Error(err)
     }
@@ -74,7 +72,13 @@ func main() {
     }
     n := node.New(hostname, strings.Split(*region, ":") ... )
     n.ErrHandler = node.ErrHandler
-    n.ScriptHandler = node.PyExec
+    py := new(node.Py)
+    if err := py.Init(*scriptPath); err != nil {
+        log.Error(err)
+        return
+    }
+    defer py.Final()
+    n.Script = py
 
     if *dzuri != "" {
         log.Messagef("Connect to Doozerd: dzns=[%s], doozer=[%s]", *dzburi, *dzuri)

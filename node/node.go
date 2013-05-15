@@ -24,12 +24,11 @@ const (
     QUEUE_SIZE = 16
 )
 
-type ZFuncHandler func(string, ... interface{}) error
-
 type ZNode struct {
     ErrHandler ErrorHandlerFunc
-    ScriptHandler ZFuncHandler
     DecodeHandler ZDecodeHandler
+
+    Script ScriptInterpreter
 
     conns []Conn
     watcher chan []byte
@@ -154,8 +153,8 @@ func (node *ZNode) Call(name string, params ... interface{}) {
         }
         return
     }
-    if node.ScriptHandler != nil {
-        if err := node.ScriptHandler(name, params ...); err != nil {
+    if node.Script != nil {
+        if err := node.Script.Exec(name, params ...); err != nil {
             node.err(err)
        }
     }
