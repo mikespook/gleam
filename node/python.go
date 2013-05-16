@@ -10,7 +10,7 @@ import (
     "time"
     "reflect"
     "io/ioutil"
-    "github.com/qiniu/py"
+    "github.com/mikespook/py"
     "github.com/mikespook/golib/log"
 )
 
@@ -67,7 +67,6 @@ func (p *Py) Init(path string) (err error) {
 
 func (p *Py) Final() (err error) {
     p.zNodeMod.Decref()
-    py.Finalize()
     return
 }
 

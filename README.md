@@ -34,7 +34,7 @@ Dependencies
 
  * [Golib](https://github.com/mikespook/golib)
  
- * [py](https://github.com/qiniu/py)
+ * [py](https://github.com/mikespook/py)
 
  * [gozk](https://github.com/petar/gozk)
 
