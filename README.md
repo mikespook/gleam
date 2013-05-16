@@ -1,15 +1,16 @@
 Z-Node
 ======
 
-Z-Node is a cluster for helping operations. It works with 
+Z-Node is a cluster for helping system operations. It works with 
 [Doozer cluster](https://github.com/ha/doozerd) and 
 [ZooKeeper cluster](http://zookeeper.apache.org/). 
 
-Every Z-Node watches two files:
+Every Z-Node watches at least two files:
 
  * /z-node/node/$HOST/$PID - for one-node tasks;
 
- * /z-node/$REGION/wire - for cluster tasks.
+ * /z-node/$REGION/wire - for cluster tasks (Every Z-Node instance can 
+ watch multi-regions).
 
 Z-Node will register itself as file `/z-node/info/$HOST/$PID` with running 
 informations. It watches the file `/z-node/node/$HOST/$PID` for one-node 
