@@ -158,6 +158,8 @@ func parsePyArgs(arg interface{}) (item *py.Base) {
             }
         }
         item = d.Obj()
+    case reflect.Float32, reflect.Float64:
+        item = py.NewFloat(r.Float()).Obj()
     default:
         item = py.IncNone()
     }
