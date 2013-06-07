@@ -114,7 +114,10 @@ func (p *Py) Exec(name string, params ... interface{}) error {
     defer args.Decref()
 
     locals := py.NewDict()
-    if err := locals.SetItemString("args", args.Obj()); err != nil {
+    if err := locals.SetItemString("_ARGS_", args.Obj()); err != nil {
+        return err
+    }
+    if err := locals.SetItemString("_ROOT_", py.NewString(p.path).Obj()); err != nil {
         return err
     }
     defer locals.Decref()
