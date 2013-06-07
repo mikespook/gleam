@@ -1,6 +1,8 @@
 Z-Node
 ======
 
+[![Build Status](https://travis-ci.org/mikespook/z-node.png?branch=master)](https://travis-ci.org/mikespook/z-node)
+
 Z-Node is a cluster for helping system operations. It works with 
 [Doozer cluster](https://github.com/ha/doozerd) and 
 [ZooKeeper cluster](http://zookeeper.apache.org/). 
