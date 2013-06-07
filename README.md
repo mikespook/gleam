@@ -35,7 +35,7 @@ Dependencies
 
  * [Golib](https://github.com/mikespook/golib)
  
- * [py](https://github.com/mikespook/py)
+ * [py](https://github.com/mikespook/py) fork from [qiniu/py](https://github.com/qiniu/py)
 
  * [gozk](https://github.com/petar/gozk)
 
