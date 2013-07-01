@@ -4,7 +4,7 @@
 
 check_base_env
 
-if [ $EUID -e 0 ]; then
+if [ $EUID -eq 0 ]; then
     apt-get install -y gcc libc6-dev mercurial
     if [ "$?" != "0" ]; then 
     	echo "error, check your network!"

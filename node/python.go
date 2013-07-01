@@ -10,7 +10,7 @@ import (
     "time"
     "reflect"
     "io/ioutil"
-    "github.com/mikespook/py"
+    "github.com/qiniu/py"
     "github.com/mikespook/golib/log"
 )
 
