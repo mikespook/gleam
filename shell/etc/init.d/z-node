@@ -1,0 +1,86 @@
+#!/bin/bash
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=z-node
+DESC=z-node
+
+if [ -f /etc/doozerd/dzns.conf ]; then  
+    CONFIG=/etc/doozerd/dzns.conf
+elif [ -f dzns.conf ]; then
+    CONFIG=dzns.conf
+else
+    exit 1
+fi
+
+. $CONFIG
+
+if [ -f /etc/doozerd/doozerd.conf ]; then  
+    CONFIG=/etc/doozerd/doozerd.conf
+elif [ -f doozerd.conf ]; then
+    CONFIG=doozerd.conf
+else
+    exit 1
+fi
+
+. $CONFIG
+
+if [ -f /etc/$NAME.conf ]; then  
+    CONFIG=/etc/$NAME.conf
+elif [ -f $NAME.conf ]; then
+    CONFIG=$NAME.conf
+else
+    exit 1
+fi
+
+. $CONFIG
+
+
+test -x $DAEMON || exit 1
+
+set -e
+
+. /lib/lsb/init-functions
+
+start_z_node() {
+    if [ $DZNS ] ; then
+        nohup $DAEMON -doozer="doozer:?cn=$DOOZER_CN" \
+            -dzns="doozer:?ca=$DZNS_MASTER&$DZNS_NODE" \
+            -region="$REGION">>$DAEMON_LOG 2>&1 &
+    else
+        nohup $DAEMON -doozer="doozer:?ca=$DOOZER_NODE" \
+            -region="$REGION">>$DAEMON_LOG 2>&1 &
+    fi
+}
+
+stop_z_node() {
+    PID=`ps -AF |grep -v grep|grep $DAEMON|awk '{print $2;}'`
+    if [ -n "$PID" ]; then
+        kill $PID
+    fi
+}
+
+case "$1" in
+	start)
+		echo -n "Starting $DESC: "
+                start_z_node
+		echo "$NAME."
+		;;
+	stop)
+		echo -n "Stopping $DESC: "
+                stop_z_node
+		echo "$NAME."
+		;;
+	restart)
+		echo -n "Restarting $DESC: "
+                stop_z_node
+        	sleep 1
+                start_z_node
+		echo "$NAME."
+		;;
+	*)
+		echo "Usage: $NAME {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

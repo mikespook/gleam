@@ -1,8 +1,12 @@
 #!/bin/bash
 
-. common.sh
-
-check_base_env
+if [ ! -n "$SERVICE_BASE" ]; then
+    if [ -n "$1" ]; then
+        SERVICE_BASE=$1
+    else
+        SERVICE_BASE=$HOME
+    fi
+fi
 
 if [ $EUID -eq 0 ]; then
     apt-get install -y gcc libc6-dev mercurial

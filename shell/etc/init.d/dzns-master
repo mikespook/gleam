@@ -4,13 +4,21 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=dzns
 DESC=dzns
 
-[ -f config.sh ] || exit 0
-. config.sh
+if [ -f /etc/doozerd/$NAME.conf ]; then  
+    CONFIG=/etc/doozerd/$NAME.conf
+elif [ -f $NAME.conf ]; then
+    CONFIG=$NAME.conf
+else
+    exit 1
+fi
 
+. $CONFIG
 
-test -x $DAEMON || exit 0
+test -x $DAEMON || exit 1
 
 set -e
+
+mkdir -p $LOG_BASE
 
 . /lib/lsb/init-functions
 
@@ -36,7 +44,7 @@ case "$1" in
                 stop_dzns_master
                 echo "$NAME."
 		;;
-	restart|force-reload)
+	restart)
 		echo -n "Restarting $DESC: "
                 stop_dzns_master
 		sleep 1
@@ -44,7 +52,7 @@ case "$1" in
 		echo "$NAME."
 		;;
 	*)
-		echo "Usage: $NAME {start|stop|restart|force-reload}" >&2
+		echo "Usage: $NAME {start|stop|restart}" >&2
 		exit 1
 		;;
 esac
