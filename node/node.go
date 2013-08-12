@@ -15,7 +15,6 @@ import (
 
 const (
     MaxErrorCount = 5
-    FuncPoolSize = 30
     DefaultRegion = "default"
     Root = "/z-node"
     WireFile = Root + "/%s/wire"
@@ -66,7 +65,7 @@ func New(hostname string, regions ... string) (node *ZNode) {
         wires: regions,
         nodeFile: nodeFile,
         infoFile: infoFile,
-        fmap: funcmap.New(FuncPoolSize),
+        fmap: funcmap.New(),
         watcher: make(chan []byte, QUEUE_SIZE),
         conns: make([]Conn, 0),
     }
