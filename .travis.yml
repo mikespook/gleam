@@ -2,5 +2,5 @@ language: go
 before_install:
   - export CGO_CFLAGS="-I/usr/include/zookeeper"
   - export CGO_LDFLAGS="-lzookeeper_mt"
-  - sudo apt-get install -qq python2.7-dev libzookeeper-mt-dev
+  - sudo apt-get install -qq libzookeeper-mt-dev liblua5.1-0-dev
 
