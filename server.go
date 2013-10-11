@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/mikespook/golib/log"
 	"github.com/mikespook/golib/signal"
+	"github.com/mikespook/golib/pid"
 	"github.com/mikespook/z-node/node"
 	"os"
 	"strings"
@@ -19,8 +20,9 @@ var (
 	dzburi     = flag.String("dzns", "", "address of the DzNS")
 	zk         = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
 	region     = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
-	scriptPath = flag.String("script", "", "default script path(as the enviroment variable $Z_NODE_SCRIPT_ROOT)")
+	scriptPath = flag.String("script", "", "default script root path(the env-var $Z_NODE_SCRIPT_ROOT is also effective)")
 	encoding   = flag.String("encoding", "json", "encoding of task message (JSON as default)")
+	pidFile = flag.String("pid", "", "pid file")
 )
 
 func init() {
@@ -63,7 +65,18 @@ func main() {
 		time.Sleep(time.Second)
 	}()
 
-	log.Message("Starting...")
+	pidNo := os.Getpid()
+
+	if *pidFile != "" {
+	    pf, err := pid.New(*pidFile)
+	    if err != nil {
+			log.Error(err)
+			return
+	    }
+		defer pf.Close()
+	}
+
+	log.Messagef("Starting(PID = %d)...", pidNo)
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Error(err)
@@ -107,7 +120,7 @@ func main() {
 	defer n.Close()
 	go func() {
 		n.Wait()
-		signal.Send(os.Getpid(), os.Interrupt)
+		signal.Send(pidNo, os.Interrupt)
 	}()
 	// signal handler
 	sh := signal.NewHandler()

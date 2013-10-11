@@ -1,0 +1,127 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          z-node
+# Required-Start:    $network $remote_fs $local_fs 
+# Required-Stop:     $network $remote_fs $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Stop/start z-node
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=z-node
+DESC=z-node
+DAEMON=/usr/bin/z-node
+
+
+if [ -f /etc/$NAME.conf ]; then  
+	CONFIG=/etc/$NAME.conf
+elif [ -f $NAME.conf ]; then
+	CONFIG=$NAME.conf
+else
+	echo "Missing config file: $NAME.conf"
+	exit 1
+fi
+
+. $CONFIG
+
+test -x $DAEMON
+if [ $? -eq 1 ]; then
+	echo "Missing binary file: $DAEMON"
+	exit 1
+fi
+
+set -e
+
+. /lib/lsb/init-functions
+
+start_z_node() {
+	if [ -f $pid ]; then
+		echo -n "Already started " && return 1
+	fi
+	$DAEMON -doozer="$doozer" -dzns="$dzns" -encoding="$encoding" \
+		-log="$log" -log-level="$log_level" -pid="$pid" -region="$region" \
+		-script="$script" -zk="$zk" &>>$log &
+}
+
+stop_z_node() {
+	[ ! -f $pid ] && echo -n "Not running " && return 1
+	p=`cat $pid`
+	[ -n "$p" ] && kill -INT $p &> /dev/null
+	if [ $? -ne 0 ]; then
+		rm $pid
+		return 1
+	fi
+}
+
+waitstart() {
+	i=0
+	while [ ! -f $pid ] ; do
+		echo -n .
+		sleep 0.2
+		if [ $i -gt 50 ]; then
+			return 1
+		fi
+		i=$(($i + 1))
+	done
+}
+
+waitstop() {	
+	i=0
+	while [ -f $pid ] ; do
+		echo -n .
+		sleep 0.2
+		if [ $i -gt 50 ]; then
+			return 1
+		fi
+		i=$(($i + 1))
+	done
+}
+
+_start() { 
+	if start_z_node; then
+		if waitstart; then
+			echo "... OK."
+		else
+			echo "... Waiting too long."
+		fi
+	else
+		echo "... FAILED."
+	fi
+}
+
+_stop() {
+	if stop_z_node; then
+		if waitstop; then
+			echo "... OK."
+		else
+			echo "... Waiting too long."
+		fi
+	else
+		echo "... FAILED."	
+	fi
+}
+
+case "$1" in
+	start)
+		echo -n "Starting $NAME: "
+		_start
+		;;
+	stop)
+		echo -n "Stopping $NAME: "
+		_stop
+		;;
+	restart)
+		echo "Restarting $NAME"
+		echo -n "Stopping: "
+		_stop
+		echo -n "Starting: "	
+		_start
+		;;
+	*)
+		echo "Usage: $NAME {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0
