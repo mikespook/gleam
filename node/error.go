@@ -6,21 +6,20 @@
 package node
 
 import (
-    "errors"
+	"errors"
 )
 
 var (
-    ErrHandler ErrorHandlerFunc
-    ErrLoadScript = errors.New("Loading script error")
-    ErrConnection = errors.New("Connection error")
-    ErrParam = errors.New("Params error")
+	ErrHandler    ErrorHandlerFunc
+	ErrLoadScript = errors.New("Loading script error")
+	ErrConnection = errors.New("Connection error")
+	ErrParam      = errors.New("Params error")
 )
 
 type ErrorHandlerFunc func(error)
 
-
 func _err(err error) {
-    if ErrHandler != nil {
-        ErrHandler(err)
-    }
+	if ErrHandler != nil {
+		ErrHandler(err)
+	}
 }

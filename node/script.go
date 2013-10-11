@@ -6,16 +6,16 @@
 package node
 
 import (
-    "os"
-    "strings"
+	"os"
+	"strings"
 )
 
 type ScriptInterpreter interface {
-    Exec(name string, params ... interface{}) error
-    Init(path string) error
-    Final() error
+	Exec(name string, params ...interface{}) error
+	Init(path string) error
+	Final() error
 }
 
 func nameToPath(path, name string) string {
-    return path + string(os.PathSeparator) + strings.Replace(name, ".", "", -1)
+	return path + string(os.PathSeparator) + strings.Replace(name, ".", "", -1)
 }
