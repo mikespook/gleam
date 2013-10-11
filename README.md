@@ -1,11 +1,11 @@
 Z-Node
 ======
 
-[![Build Status](https://travis-ci.org/mikespook/z-node.png?branch=master)](https://travis-ci.org/mikespook/z-node)
+[![Build Status][travis-img]][travis]
 
 Z-Node is a cluster for helping system operations. It works with 
-[Doozer cluster](https://github.com/ha/doozerd) and 
-[ZooKeeper cluster](http://zookeeper.apache.org/). 
+[Doozer cluster][doozerd] and 
+[ZooKeeper cluster][zk]. 
 
 Every Z-Node watches at least two files:
 
@@ -22,7 +22,7 @@ All of Z-Nodes watch the file `/z-node/$REGION/wire` for cluster tasks.
 When the file is changed, all of Z-Nodes will be notified.
 
 The message (the file contents) is encoded data (Default by 
-[JSON](http://www.json.org/)) with the function name and paramaters. Z-Node 
+[JSON][json]) with the function name and paramaters. Z-Node 
 will call the function with the paramaters.
 
     {
@@ -33,21 +33,23 @@ will call the function with the paramaters.
 Dependencies
 ============
 
- * [Doozer](https://github.com/ha/doozer) 
+ * [Doozer][doozer]
 
- * [Golib](https://github.com/mikespook/golib)
+ * [Golib][golib]
+
+ * [lua][lua-for-go]
+
+ * [luar][luar]
  
- * [py](https://github.com/qiniu/py)
-
- * [gozk](https://github.com/petar/gozk)
+ * [gozk][gozk]
 
 Installing & Running
 ====================
 
-All useful scripts were put at the directory [shell](https://github.com/mikespook/z-node/tree/master/shell).
+All useful scripts were put at the directory [shell][shell].
 
-Befor building, the proper ZooKeeper libraries and headers must be installed .
-E.g. Ubuntu 12.10, the package `libzookeeper-mt-dev` must be installed. 
+Befor building, the proper ZooKeeper and lua libraries and headers must be installed .
+E.g. Ubuntu 12.10, the package `libzookeeper-mt-dev` and `liblua5.1-0-dev` must be installed. 
 
 The ZooKeeper package use cgo to communicat with ZooKeeper server.
 
@@ -83,7 +85,7 @@ Client
 
     $ cd github.com/mikespook/z-node/client
     $ go build
-    $ ./client -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -func=test abc def 123 456
+    $ ./client -dzns="doozer:?ca=127.0.0.1:9046" -doozer="doozer:?cn=app" -func=test abc def foobar=456
     $ ./client -zk="127.0.0.1:2181" -func=test -region=testing
 
 Authors
@@ -100,3 +102,15 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ [luar]: https://github.com/stevedonovan/luar
+ [doozerd]: https://github.com/ha/doozerd
+ [doozer]: https://github.com/ha/doozer
+ [zk]: http://zookeeper.apache.org
+ [travis-img]: https://travis-ci.org/mikespook/z-node.png?branch=master
+ [travis]: https://travis-ci.org/mikespook/z-node
+ [json]: http://www.json.org/
+ [golib]: https://github.com/mikespook/golib
+ [lua-for-go]: https://github.com/aarzilli/golua/lua
+ [gozk]: https://github.com/petar/gozk
+ [shell]: https://github.com/mikespook/z-node/tree/master/shell
