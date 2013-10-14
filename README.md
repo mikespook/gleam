@@ -43,17 +43,20 @@ Dependencies
  
  * [gozk][gozk]
 
+ * libzookeeper-mt-dev and liblua5.1-0-dev for Ubuntu
+
+
 Installing & Running
 ====================
 
 All useful scripts were put at the directory [shell][shell].
 
 Befor building, the proper ZooKeeper and lua libraries and headers must be installed .
-E.g. Ubuntu 12.10, the package `libzookeeper-mt-dev` and `liblua5.1-0-dev` must be installed. 
+E.g. Ubuntu 13.04, the package `libzookeeper-mt-dev` and `liblua5.1-0-dev` must be installed. 
 
 The ZooKeeper package use cgo to communicat with ZooKeeper server.
 
-This two environment variables must be set (On Ubuntu 12.10):
+This two environment variables must be set (tested on Ubuntu):
 
     $ export CGO_CFLAGS="-I/usr/include/zookeeper"
     $ export CGO_LDFLAGS="-lzookeeper_mt"
