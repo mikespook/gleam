@@ -107,11 +107,13 @@ func main() {
 
 	switch *encoding {
 	case "gob":
-		n.DecodeHandler = node.GobDecoder
+		var e node.Gob
+		n.Coder = e
 	case "json":
 		fallthrough
 	default:
-		n.DecodeHandler = node.JSONDecoder
+		var e node.JSON
+		n.Coder = e
 	}
 
 	n.Bind("Stop", node.Stop)

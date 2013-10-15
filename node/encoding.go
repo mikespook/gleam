@@ -11,22 +11,30 @@ import (
 	"encoding/json"
 )
 
-type ZDecodeHandler func([]byte, *ZFunc) error
 
-func JSONDecoder(data []byte, fn *ZFunc) error {
+type Encodeing interface {
+	Encode(fn *ZFunc) ([]byte, error)
+	Decode(data []byte, fn *ZFunc) error
+}
+
+type JSON struct {}
+
+func (j JSON)Decode(data []byte, fn *ZFunc) error {
 	return json.Unmarshal(data, fn)
 }
 
-func JSONEncoder(fn *ZFunc) ([]byte, error) {
+func (j JSON)Encode(fn *ZFunc) ([]byte, error) {
 	return json.Marshal(fn)
 }
 
-func GobDecoder(data []byte, fn *ZFunc) error {
+type Gob struct {}
+
+func (g Gob)Decode(data []byte, fn *ZFunc) error {
 	d := gob.NewDecoder(bytes.NewReader(data))
 	return d.Decode(fn)
 }
 
-func GobEncoder(fn *ZFunc) ([]byte, error) {
+func (g Gob)Encode(fn *ZFunc) ([]byte, error) {
 	var b bytes.Buffer
 	e := gob.NewEncoder(&b)
 	err := e.Encode(fn)
