@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/mikespook/golib/log"
-	"github.com/mikespook/golib/signal"
 	"github.com/mikespook/golib/pid"
+	"github.com/mikespook/golib/signal"
 	"github.com/mikespook/z-node/node"
 	"os"
 	"strings"
@@ -22,7 +22,7 @@ var (
 	region     = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
 	scriptPath = flag.String("script", "", "default script root path(the env-var $Z_NODE_SCRIPT_ROOT is also effective)")
 	encoding   = flag.String("encoding", "json", "encoding of task message (JSON as default)")
-	pidFile = flag.String("pid", "", "pid file")
+	pidFile    = flag.String("pid", "", "pid file")
 )
 
 func init() {
@@ -68,11 +68,11 @@ func main() {
 	pidNo := os.Getpid()
 
 	if *pidFile != "" {
-	    pf, err := pid.New(*pidFile)
-	    if err != nil {
+		pf, err := pid.New(*pidFile)
+		if err != nil {
 			log.Error(err)
 			return
-	    }
+		}
 		defer pf.Close()
 	}
 

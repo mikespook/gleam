@@ -25,8 +25,8 @@ const (
 )
 
 type ZNode struct {
-	ErrHandler    ErrorHandlerFunc
-	Coder Encodeing
+	ErrHandler ErrorHandlerFunc
+	Coder      Encoding
 
 	iptPool *iptpool.IptPool
 	conns   []Conn
@@ -83,7 +83,6 @@ func (node *ZNode) AddConn(conn Conn) (err error) {
 		return
 	}
 	node.conns = append(node.conns, conn)
-	conn.SetNode(node)
 	return
 }
 
@@ -92,6 +91,55 @@ func (node *ZNode) Start(scriptPath string) {
 	node.watchWire()
 	node.iptPool.OnCreate = func(ipt iptpool.ScriptIpt) error {
 		ipt.Init(scriptPath)
+		ipt.Bind("SetOnWire", func(regine, name string, params interface{}) (err error) {
+			f := &ZFunc{Name: name, Params: params}
+			data, err := node.Coder.Encode(f)
+			if err != nil {
+				return
+			}
+			for _, conn := range node.conns {
+				if regine == "*" {
+					for _, r := range node.wires {
+						if err = conn.Set(MakeWire(r), data); err != nil {
+							return
+						}
+					}
+				} else {
+					if err = conn.Set(MakeWire(regine), data); err != nil {
+						return
+					}
+				}
+			}
+			return
+		})
+		ipt.Bind("SetOnSelf", func(name string, params interface{}) (err error) {
+			f := &ZFunc{Name: name, Params: params}
+			data, err := node.Coder.Encode(f)
+			if err != nil {
+				return
+			}
+			for _, conn := range node.conns {
+				if err = conn.Set(node.nodeFile, data); err != nil {
+					return
+				}
+			}
+			return
+		})
+		ipt.Bind("Set", func(host string, pid int, name string, params interface{}) (err error) {
+			f := &ZFunc{Name: name, Params: params}
+			data, e := node.Coder.Encode(f)
+			if e != nil {
+				return e
+			}
+			nodeFile := MakeNode(NodeFile, host, pid)
+			for _, conn := range node.conns {
+				if err = conn.Set(nodeFile, data); err != nil {
+					return
+				}
+			}
+			return
+		})
+
 		return nil
 	}
 	go node.loop()

@@ -9,7 +9,5 @@ type Conn interface {
 	Register(file string, info []byte) error
 	Close() error
 	Watch(file string, watcher chan<- []byte) error
-	SetOnWire(regine, name string, params interface{}) error
-	SetOnSelf(name string, params interface{}) error
-	SetNode(z *ZNode)
+	Set(path string, data []byte) error
 }

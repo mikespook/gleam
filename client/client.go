@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	dzuri         = flag.String("doozer", "", "address of the doozerd, must be specified as `cn` when -dzns was assigned")
-	dzburi        = flag.String("dzns", "", "address of the DzNS")
-	zkuri         = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
-	region        = flag.String("region", "default", "a region of the z-node located in")
-	host          = flag.String("host", "localhost", "hostname of z-node")
-	pid           = flag.Int("pid", 0, "pid of z-node")
-	fn            = flag.String("func", "", "function name (must be specified)")
-	encoding      = flag.String("encoding", "json", "encoding of task message (JSON as default)")
-	encodeHandler func(*node.ZFunc) ([]byte, error)
+	dzuri    = flag.String("doozer", "", "address of the doozerd, must be specified as `cn` when -dzns was assigned")
+	dzburi   = flag.String("dzns", "", "address of the DzNS")
+	zkuri    = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
+	region   = flag.String("region", "default", "a region of the z-node located in")
+	host     = flag.String("host", "localhost", "hostname of z-node")
+	pid      = flag.Int("pid", 0, "pid of z-node")
+	fn       = flag.String("func", "", "function name (must be specified)")
+	encoding = flag.String("encoding", "json", "encoding of task message (JSON as default)")
+	coder    node.Encoding
 )
 
 func init() {
@@ -51,11 +51,13 @@ func init() {
 func main() {
 	switch *encoding {
 	case "gob":
-		encodeHandler = node.GobEncoder
+		var c node.Gob
+		coder = c
 	case "json":
 		fallthrough
 	default:
-		encodeHandler = node.JSONEncoder
+		var c node.JSON
+		coder = c
 	}
 
 	var path string
@@ -103,7 +105,7 @@ func doozerd(path string, params interface{}) {
 		return
 	}
 	f := &node.ZFunc{Name: *fn, Params: params}
-	body, err := encodeHandler(f)
+	body, err := coder.Encode(f)
 	if err != nil {
 		log.Error(err)
 		return
@@ -130,7 +132,7 @@ func zk(path string, params interface{}) {
 	}
 
 	f := &node.ZFunc{Name: *fn, Params: params}
-	body, err := encodeHandler(f)
+	body, err := coder.Encode(f)
 	if err != nil {
 		log.Error(err)
 		return
