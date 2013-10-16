@@ -26,7 +26,7 @@ const (
 
 type ZNode struct {
 	ErrHandler    ErrorHandlerFunc
-	DecodeHandler ZDecodeHandler
+	Coder Encodeing
 
 	iptPool *iptpool.IptPool
 	conns   []Conn
@@ -83,6 +83,7 @@ func (node *ZNode) AddConn(conn Conn) (err error) {
 		return
 	}
 	node.conns = append(node.conns, conn)
+	conn.SetNode(node)
 	return
 }
 
@@ -97,12 +98,13 @@ func (node *ZNode) Start(scriptPath string) {
 }
 
 func (node *ZNode) loop() {
-	if node.DecodeHandler == nil {
-		node.DecodeHandler = JSONDecoder
+	if node.Coder == nil {
+		var j JSON
+		node.Coder = j
 	}
 	for data := range node.watcher {
 		var fn ZFunc
-		if err := node.DecodeHandler(data, &fn); err != nil {
+		if err := node.Coder.Decode(data, &fn); err != nil {
 			node.err(err)
 			continue
 		}

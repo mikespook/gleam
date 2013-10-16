@@ -13,6 +13,7 @@ import (
 
 type ZooKeeper struct {
 	conn *zookeeper.Conn
+	z *ZNode
 }
 
 func NewZooKeeper(uri string) (zk *ZooKeeper, err error) {
@@ -103,6 +104,43 @@ func (zk *ZooKeeper) Watch(file string, watcher chan<- []byte) (err error) {
 		}
 	}
 	return
+}
+
+func (zk *ZooKeeper) SetOnWire(regine, name string, params interface{}) (err error) {
+	f := &ZFunc{Name: name, Params: params}
+	data, err := zk.z.Coder.Encode(f)
+	if err != nil {
+		return
+	}
+	path := MakeWire(regine)
+	stat, err := zk.conn.Exists(path)
+	if err != nil {
+		return
+	}
+	if stat, err = zk.conn.Set(path, string(data), stat.Version()); err != nil {
+		return
+	}
+	return
+}
+
+func (zk *ZooKeeper) SetOnSelf(name string, params interface{}) (err error) {
+	f := &ZFunc{Name: name, Params: params}
+	data, err := zk.z.Coder.Encode(f)
+	if err != nil {
+		return
+	}
+	stat, err := zk.conn.Exists(zk.z.nodeFile)
+	if err != nil {
+		return
+	}
+	if stat, err = zk.conn.Set(zk.z.nodeFile, string(data), stat.Version()); err != nil {
+		return
+	}
+	return
+}
+
+func (zk *ZooKeeper) SetNode(z *ZNode) {
+	zk.z = z
 }
 
 func filterErr(err error) *zookeeper.Error {

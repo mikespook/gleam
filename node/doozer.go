@@ -13,6 +13,7 @@ type Doozer struct {
 	conn     *doozer.Conn
 	rev      int64
 	infoFile string
+	z *ZNode
 }
 
 func NewDoozer(uri, buri string) (d *Doozer, err error) {
@@ -59,4 +60,34 @@ func (d *Doozer) Watch(file string, watcher chan<- []byte) (err error) {
 		watcher <- ev.Body
 	}
 	return
+}
+
+func (d *Doozer) SetOnWire(regine, name string, params interface{}) (err error) {
+	f := &ZFunc{Name: name, Params: params}
+	data, err := d.z.Coder.Encode(f)
+	if err != nil {
+		return
+	}
+	d.rev, err = d.conn.Set(MakeWire(regine), d.rev, data)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (d *Doozer) SetOnSelf(name string, params interface{}) (err error) {
+	f := &ZFunc{Name: name, Params: params}
+	data, err := d.z.Coder.Encode(f)
+	if err != nil {
+		return
+	}
+	d.rev, err = d.conn.Set(d.z.nodeFile, d.rev, data)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (d *Doozer) SetNode(z *ZNode) {
+	d.z = z
 }
