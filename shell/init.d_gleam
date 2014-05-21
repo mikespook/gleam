@@ -1,17 +1,17 @@
 #!/bin/bash
 ### BEGIN INIT INFO
-# Provides:          z-node
+# Provides:          gleam
 # Required-Start:    $network $remote_fs $local_fs 
 # Required-Stop:     $network $remote_fs $local_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Stop/start z-node
+# Short-Description: Stop/start gleam
 ### END INIT INFO
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-NAME=z-node
-DESC=z-node
-DAEMON=/usr/bin/z-node
+NAME=gleam
+DESC=gleam
+DAEMON=/usr/bin/gleam
 
 
 if [ -f /etc/$NAME.conf ]; then  
@@ -35,16 +35,16 @@ set -e
 
 . /lib/lsb/init-functions
 
-start_z_node() {
+start_gleam() {
 	if [ -f $pid ]; then
 		echo -n "Already started " && return 1
 	fi
-	$DAEMON -doozer="$doozer" -dzns="$dzns" -encoding="$encoding" \
+	$DAEMON -etcd="$etcd" -id="$id" -region="$region" -script="$script" \
 		-log="$log" -log-level="$log_level" -pid="$pid" -region="$region" \
-		-script="$script" -zk="$zk" &>>$log &
+		&>>$log &
 }
 
-stop_z_node() {
+stop_gleam() {
 	[ ! -f $pid ] && echo -n "Not running " && return 1
 	p=`cat $pid`
 	[ -n "$p" ] && kill -INT $p &> /dev/null
@@ -79,7 +79,7 @@ waitstop() {
 }
 
 _start() { 
-	if start_z_node; then
+	if start_gleam; then
 		if waitstart; then
 			echo "... OK."
 		else
@@ -91,7 +91,7 @@ _start() {
 }
 
 _stop() {
-	if stop_z_node; then
+	if stop_gleam; then
 		if waitstop; then
 			echo "... OK."
 		else

@@ -2,10 +2,12 @@
 
 [ $EUID -ne 0 ] && echo 'root needed' && exit 1
 
-cp init.d_z-node /etc/init.d/z-node
-cp z-node.conf /etc/z-node.conf
-mkdir -p /usr/share/z-node
+go get github.com/mikespook/gleam
+cp $GOBIN/gleam /usr/bin/
+cp init.d_gleam /etc/init.d/gleam
+cp gleam.conf /etc/gleam.conf
+mkdir -p /usr/share/gleam
 
-update-rc.d -f z-node remove
-update-rc.d z-node defaults
-service z-node restart
+update-rc.d -f gleam remove
+update-rc.d gleam defaults
+service gleam restart
