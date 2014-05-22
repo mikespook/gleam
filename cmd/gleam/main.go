@@ -2,130 +2,88 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/mikespook/golib/log"
 	"github.com/mikespook/golib/pid"
 	"github.com/mikespook/golib/signal"
-	"github.com/mikespook/z-node/node"
-	"os"
-	"strings"
-	"time"
+
+	"github.com/mikespook/gleam"
 )
 
 const (
-	SCRIPT_ROOT = "Z_NODE_SCRIPT_ROOT"
+	SCRIPT_ROOT = "GLEAM_SCRIPT_ROOT"
 )
 
 var (
-	dzuri      = flag.String("doozer", "", "address of the doozerd, must be specified as `cn` when -dzns was assigned")
-	dzburi     = flag.String("dzns", "", "address of the DzNS")
-	zk         = flag.String("zk", "", "address of the ZooKeeper (using ',' as the separator for multi-ZooKeepers), one of -doozer and -zk must be specified")
-	region     = flag.String("region", node.DefaultRegion, "a region of the z-node located in (using ':' as the separator for multi-regions)")
-	scriptPath = flag.String("script", "", "default script root path(the env-var $Z_NODE_SCRIPT_ROOT is also effective)")
-	encoding   = flag.String("encoding", "json", "encoding of task message (JSON as default)")
-	pidFile    = flag.String("pid", "", "pid file")
+	etcd, id, region, script, pidfile string
 )
 
 func init() {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Error(err)
+		os.Exit(-1)
+		return
+	}
+
 	if !flag.Parsed() {
+		flag.StringVar(&etcd, "etcd", "http://127.0.0.1:7001", "url of etcd")
+		flag.StringVar(&id, "id", fmt.Sprintf("%s-%d", hostname, os.Getpid()), "node id")
+		flag.StringVar(&region, "region", "default", "regions to watch, multi-regions splite by `:`")
+		flag.StringVar(&script, "script", "", "directory of lua scripts")
+		flag.StringVar(&pidfile, "pid", "", "PID file")
+
 		flag.Parse()
 	}
+	log.InitWithFlag()
 
-	if *dzburi != "" && *dzuri == "" {
-		flag.Usage()
-		os.Exit(-1)
-		return
+	if script == "" {
+		script = os.Getenv(SCRIPT_ROOT)
 	}
-
-	if *dzuri == "" && *zk == "" {
-		flag.Usage()
-		os.Exit(-1)
-		return
-	}
-
-	if *scriptPath == "" {
-		*scriptPath = os.Getenv(SCRIPT_ROOT)
-	}
-	if *scriptPath == "" {
-		var err error
-		*scriptPath, err = os.Getwd()
-		if err != nil {
-			log.Error(err)
-			os.Exit(-1)
-			return
-		}
-	}
-	node.ErrHandler = func(err error) {
-		log.Error(err)
+	if script == "" {
+		script = "./"
 	}
 }
 
 func main() {
-	defer func() {
-		log.Message("Exit.")
-		time.Sleep(time.Second)
-	}()
-
-	pidNo := os.Getpid()
-
-	if *pidFile != "" {
-		pf, err := pid.New(*pidFile)
+	if pidfile != "" {
+		p, err := pid.New(pidfile)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		defer pf.Close()
+		defer p.Close()
 	}
 
-	log.Messagef("Starting(PID = %d)...", pidNo)
-	hostname, err := os.Hostname()
+	log.Message("Starting...")
+
+	g, err := gleam.New(id, script)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	n := node.New(hostname, strings.Split(*region, ":")...)
-	n.ErrHandler = node.ErrHandler
+	defer g.Close()
 
-	if *dzuri != "" {
-		log.Messagef("Connect to Doozerd: dzns=[%s], doozer=[%s]", *dzburi, *dzuri)
-		d, err := node.NewDoozer(*dzuri, *dzburi)
-		if err != nil {
+	log.Messagef("Watching(ID = %s)...", id)
+	if err := g.Watch(gleam.MakeNode(id)); err != nil {
+		log.Error(err)
+		return
+	}
+	for _, r := range strings.Split(region, ":") {
+		log.Messagef("Watching(Region = %s)...", r)
+		if err := g.Watch(gleam.MakeRegion(r)); err != nil {
 			log.Error(err)
 			return
 		}
-		n.AddConn(d)
 	}
+	go g.Serve()
 
-	if *zk != "" {
-		log.Messagef("Connect to ZooKeeper: zk=[%s]", *zk)
-		z, err := node.NewZooKeeper(*zk)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		n.AddConn(z)
-	}
-
-	switch *encoding {
-	case "gob":
-		var e node.Gob
-		n.Coder = e
-	case "json":
-		fallthrough
-	default:
-		var e node.JSON
-		n.Coder = e
-	}
-
-	n.Bind("Stop", node.Stop)
-	n.Bind("Restart", node.Restart)
-	n.Start(*scriptPath)
-	defer n.Close()
-	go func() {
-		n.Wait()
-		signal.Send(pidNo, os.Interrupt)
-	}()
 	// signal handler
 	sh := signal.NewHandler()
 	sh.Bind(os.Interrupt, func() bool { return true })
 	sh.Loop()
+	log.Message("Exit!")
 }

@@ -1,19 +1,15 @@
-// Copyright 2013 Xing Xing <mikespook@gmail.com>.
-// All rights reserved.
-// Use of this source code is governed by a commercial
-// license that can be found in the LICENSE file.
-
-package node
+package gleam
 
 import (
+	"path"
+
 	"github.com/aarzilli/golua/lua"
 	"github.com/mikespook/golib/iptpool"
 	"github.com/mikespook/golib/log"
 	"github.com/stevedonovan/luar"
-	"path"
 )
 
-const module = "Z"
+const module = "gleam"
 
 type LuaIpt struct {
 	state *lua.State
@@ -26,7 +22,7 @@ func NewLuaIpt() iptpool.ScriptIpt {
 
 func (luaipt *LuaIpt) Exec(name string, params interface{}) error {
 	f := path.Join(luaipt.path, name+".lua")
-	luaipt.Bind("Params", luar.NewLuaObjectFromValue(luaipt.state, params))
+	luaipt.Bind("Data", luar.NewLuaObjectFromValue(luaipt.state, params))
 	return luaipt.state.DoFile(f)
 }
 
