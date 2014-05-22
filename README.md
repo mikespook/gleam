@@ -47,7 +47,7 @@ Server node
 
 Compile Gleam, and run it:
 
-    $ go get github.com/mikespook/gleam
+    $ go get github.com/mikespook/gleam/cmd/gleam
     $ $GOBIN/gleam
 
 Witch takes the following flags:
@@ -65,12 +65,12 @@ Client
 
 Gleam supplies a package
 
-    $ go get github.com/mikespook/gleam/client
+    $ go get github.com/mikespook/gleam
 
 And a cli command
 
-    $ go get github.com/mikespook/gleam/cmd/client
-    $ $GOBIN/client
+    $ go get github.com/mikespook/gleam/cmd/gleam-client
+    $ $GOBIN/gleam-client
 
 To operate Gleam nodes.
 
