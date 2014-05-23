@@ -6,33 +6,28 @@ import (
 	"gopkg.in/yaml.v1"
 )
 
-type ConfigEtcd struct {
-	Url  string
-	Ca   string
-	Cert string
-	Key  string
-}
-
 type Config struct {
 	Name   string
 	Pid    string
 	Script string
 	Region []string
-	Etcd   ConfigEtcd
+	Etcd   []string
+	Ca     string
+	Cert   string
+	Key    string
 }
 
-func LoadConfig(filename string) (*Config, error) {
+func LoadConfig(filename string, config *Config) error {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return ParseConfig(data)
+	return ParseConfig(data, config)
 }
 
-func ParseConfig(data []byte) (*Config, error) {
-	var config Config
+func ParseConfig(data []byte, config *Config) error {
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, err
+		return err
 	}
-	return &config, nil
+	return nil
 }

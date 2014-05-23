@@ -34,8 +34,12 @@ func MakeNode(id string) string {
 	return fmt.Sprintf(NodeFile, id)
 }
 
-func New(id, script string) (gleam *Gleam, err error) {
+func New(machines []string, id, script string) (gleam *Gleam, err error) {
 	return &Gleam{}, nil
+}
+
+func (gleam *Gleam) TLS(cert, key, ca string) {
+
 }
 
 func (gleam *Gleam) Serve() {

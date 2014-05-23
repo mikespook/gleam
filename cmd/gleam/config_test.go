@@ -9,16 +9,15 @@ name: test-node
 pid: /tmp/test.pid
 script: /tmp/gleam
 region: [abc, def, ghi]
-etcd:
- url: 127.0.0.1:7001
- ca:
- cert:
- key:
+etcd: ["127.0.0.1:4001", "127.0.0.1:4002"]
+ca:
+cert:
+key:
 `
 
 func TestParseConfig(t *testing.T) {
-	config, err := ParseConfig([]byte(data))
-	if err != nil {
+	var config Config
+	if err := ParseConfig([]byte(data), &config); err != nil {
 		t.Error(err)
 	}
 	if config.Name != "test-node" {
@@ -31,18 +30,18 @@ func TestParseConfig(t *testing.T) {
 		t.Errorf("Wrong script: %s", config.Script)
 	}
 	if len(config.Region) != 3 && config.Region[2] != "ghi" {
-		t.Errorf("Wrong region: %v", config.Region)
+		t.Errorf("Wrong region: %#v", config.Region)
 	}
-	if config.Etcd.Url != "127.0.0.1:7001" {
-		t.Errorf("Wrong etcd url: %s", config.Etcd.Url)
+	if len(config.Etcd) != 2 && config.Etcd[0] != "127.0.0.1:4001" {
+		t.Errorf("Wrong etcd url: %#v", config.Etcd)
 	}
-	if config.Etcd.Ca != "" {
-		t.Errorf("Wrong etcd ca: %s", config.Etcd.Ca)
+	if config.Ca != "" {
+		t.Errorf("Wrong etcd ca: %s", config.Ca)
 	}
-	if config.Etcd.Cert != "" {
-		t.Errorf("Wrong etcd ca: %s", config.Etcd.Cert)
+	if config.Cert != "" {
+		t.Errorf("Wrong etcd ca: %s", config.Cert)
 	}
-	if config.Etcd.Key != "" {
-		t.Errorf("Wrong etcd ca: %s", config.Etcd.Key)
+	if config.Key != "" {
+		t.Errorf("Wrong etcd ca: %s", config.Key)
 	}
 }
