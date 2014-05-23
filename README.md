@@ -52,13 +52,19 @@ Compile Gleam, and run it:
 
 Witch takes the following flags:
 
- * -etcd	- url of etcd;
- * -id		- node id, If it is not assigned, `$HOST-$PID` will be used as default;
- * -region	- regions to watch, multi-regions splite by `:`;
- * -script	- directory of lua scripts;
- * -pid 	- PID file;
- * -log 	- log file;
- * -log\_level - log level.
+ * -config=<path>		Path to configuration file.
+ * -etcd=<host:port>	Url of etcd.
+ * -ca-file=<path>		Path to the client CA file.
+ * -cert-file=<path>	Path to the client cert file.
+ * -key-file=<path>		Path to the client key file.
+ * -name=<name>			Name of this node. `$HOST-$PID` will be used as default.
+ * -region=<regions>	Regions to watch, multi-regions splite by `:`.
+ * -script=<path>		Directory of lua scripts.
+ * -pid=<path>			PID file.
+ * -log=<path>			Log file.
+ * -log\_level=<level>	Log level.
+
+_The configuration settings will cover flags._
 
 Client
 ------
@@ -78,10 +84,14 @@ You can read [client's source code][client-src] for the package's usage.
 
 The cli command takes the following flags:
 
- * -etcd - url of etcd;
- * -target - node id or regines, multi-targets splite by `:`;
- * -fn - function name;
- * -data
+ * -config=<path>		Path to configuration file.
+ * -etcd=<host:port>	Url of etcd.
+ * -ca-file=<path>		Path to the client CA file.
+ * -cert-file=<path>	Path to the client cert file.
+ * -key-file=<path>		Path to the client key file.
+ * -target=<target> 	Node name or regines, multi-targets splite by `:`.
+ * -fn=<name>			Function name.
+ * -data=<string>		Params.
 
 Authors
 =======
