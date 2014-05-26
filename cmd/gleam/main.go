@@ -36,28 +36,23 @@ func main() {
 	}
 
 	log.Message("Starting...")
-
-	g, err := gleam.New(config.Etcd, config.Name, config.Script)
+	if config.Ca != "" || config.Cert != "" || config.Key != "" {
+		log.Messagef("Setting TLS (CA=%s; Cert=%s; Key=%s)...", config.Ca, config.Cert, config.Key)
+	}
+	g, err := gleam.New(config.Etcd, config.Script, config.Cert, config.Key, config.Ca)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	defer g.Close()
-	if config.Ca != "" || config.Cert != "" || config.Key != "" {
-		g.TLS(config.Cert, config.Key, config.Ca)
-	}
-
-	log.Messagef("Watching(Name = %s)...", config.Name)
-	if err := g.Watch(gleam.MakeNode(config.Name)); err != nil {
+	g.ErrHandler = func(err error) {
 		log.Error(err)
-		return
 	}
+	log.Messagef("Watching(Name = %s)...", config.Name)
+	g.Watch(gleam.MakeNode(config.Name))
 	for _, r := range config.Region {
 		log.Messagef("Watching(Region = %s)...", r)
-		if err := g.Watch(gleam.MakeRegion(r)); err != nil {
-			log.Error(err)
-			return
-		}
+		g.Watch(gleam.MakeRegion(r))
 	}
 	go g.Serve()
 
@@ -76,10 +71,10 @@ func InitConfig() (*Config, error) {
 	var configFile, etcd, caFile, certFile, keyFile, name, region, script, pidFile string
 	if !flag.Parsed() {
 		flag.StringVar(&configFile, "config", "", "Path to configuration file")
-		flag.StringVar(&etcd, "etcd", "127.0.0.1:4001", "A comma-delimited list of etcd")
+		flag.StringVar(&etcd, "etcd", "http://127.0.0.1:4001", "A comma-delimited list of etcd")
 		flag.StringVar(&caFile, "ca-file", "", "Path to the CA file")
 		flag.StringVar(&certFile, "cert-file", "", "Path to the cert file")
-		flag.StringVar(&keyFile, "key-file", "", "Path to the ke:y file")
+		flag.StringVar(&keyFile, "key-file", "", "Path to the key file")
 		flag.StringVar(&name, "name", fmt.Sprintf("%s-%d", hostname, os.Getpid()), "Name of this node")
 		flag.StringVar(&region, "region", "default", "A comma-delimited list of regions to watch")
 		flag.StringVar(&script, "script", "", "Directory of lua scripts")
