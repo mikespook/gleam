@@ -20,9 +20,9 @@ func NewLuaIpt() iptpool.ScriptIpt {
 	return &LuaIpt{}
 }
 
-func (luaipt *LuaIpt) Exec(name string, params interface{}) error {
+func (luaipt *LuaIpt) Exec(name string, data interface{}) error {
 	f := path.Join(luaipt.path, name+".lua")
-	luaipt.Bind("Data", luar.NewLuaObjectFromValue(luaipt.state, params))
+	luaipt.Bind("Data", luar.NewLuaObjectFromValue(luaipt.state, data))
 	return luaipt.state.DoFile(f)
 }
 
