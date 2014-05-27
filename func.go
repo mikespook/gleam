@@ -7,14 +7,14 @@ type Func struct {
 	Data interface{}
 }
 
-func marshal(value string) (f *Func, err error) {
+func MarshalFunc(value string) (f *Func, err error) {
 	if err = json.Unmarshal([]byte(value), &f); err != nil {
 		return
 	}
 	return
 }
 
-func unmarshal(f *Func) (string, error) {
+func (f *Func) Unmarshal() (string, error) {
 	data, err := json.Marshal(f)
 	return string(data), err
 }

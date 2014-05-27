@@ -49,10 +49,10 @@ func main() {
 		log.Error(err)
 	}
 	log.Messagef("Watching(Name = %s)...", config.Name)
-	g.Watch(gleam.MakeNode(config.Name))
+	g.WatchNode(config.Name)
 	for _, r := range config.Region {
 		log.Messagef("Watching(Region = %s)...", r)
-		g.Watch(gleam.MakeRegion(r))
+		g.WatchRegion(r)
 	}
 	go g.Serve()
 

@@ -22,14 +22,17 @@ func main() {
 	}
 	switch config.Cmd {
 	case "info":
-		m, err := client.List(gleam.InfoDir)
+		m, err := client.Info()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		fmt.Println("Info:")
 		for k, v := range m {
-			fmt.Printf("\t%s => %s\n", k, v)
+			fmt.Printf("\t%s =>\n", k)
+			fmt.Printf("\t\tcreated\t=> %s\n", v[k+"/created"])
+			fmt.Printf("\t\tremoved\t=> %s\n", v[k+"/removed"])
+			fmt.Printf("\t\terror\t=> %s\n", v[k+"/error"])
 		}
 	case "region":
 		m, err := client.List(gleam.RegionDir)
