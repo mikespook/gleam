@@ -55,10 +55,16 @@ func main() {
 		g.WatchRegion(r)
 	}
 	go g.Serve()
-
 	// signal handler
 	sh := signal.NewHandler()
 	sh.Bind(os.Interrupt, func() bool { return true })
+	go func() {
+		g.Wait()
+		if err := signal.Send(os.Getpid(), os.Interrupt); err != nil {
+			panic(err)
+		}
+	}()
+
 	sh.Loop()
 	log.Message("Exit!")
 }

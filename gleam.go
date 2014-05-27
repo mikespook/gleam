@@ -131,6 +131,10 @@ func (gleam *Gleam) Watch(file string) {
 	}()
 }
 
+func (gleam *Gleam) Wait() {
+	gleam.w.Wait()
+}
+
 func (gleam *Gleam) Close() error {
 	for _, c := range gleam.closeChans {
 		close(c)
@@ -143,6 +147,9 @@ func (gleam *Gleam) Close() error {
 func (gleam *Gleam) err(err error) {
 	if gleam.ErrHandler != nil {
 		gleam.ErrHandler(err)
+	}
+	if e, ok := err.(*etcd.EtcdError); ok && e.ErrorCode == etcd.ErrCodeEtcdNotReachable {
+		return
 	}
 	gleam.client.Set(fmt.Sprintf(InfoError, gleam.id), err.Error(), 0)
 }
