@@ -2,6 +2,7 @@ package gleam
 
 import (
 	"path"
+	"strings"
 
 	"github.com/aarzilli/golua/lua"
 	"github.com/mikespook/golib/iptpool"
@@ -21,6 +22,7 @@ func NewLuaIpt() iptpool.ScriptIpt {
 }
 
 func (luaipt *LuaIpt) Exec(name string, data interface{}) error {
+	name = strings.Replace(name, ":", "/", -1)
 	f := path.Join(luaipt.path, name+".lua")
 	luaipt.Bind("Data", luar.NewLuaObjectFromValue(luaipt.state, data))
 	return luaipt.state.DoFile(f)

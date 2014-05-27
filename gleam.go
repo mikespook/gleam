@@ -28,7 +28,7 @@ type Gleam struct {
 	iptPool    *iptpool.IptPool
 	w          sync.WaitGroup
 
-	id string
+	name string
 
 	closeChans map[string]chan bool
 	fChan      chan *Func
@@ -82,26 +82,26 @@ func (gleam *Gleam) Serve() (err error) {
 }
 
 func (gleam *Gleam) register() error {
-	_, err := gleam.client.Set(fmt.Sprintf(InfoCreated, gleam.id), time.Now().String(), 0)
+	_, err := gleam.client.Set(fmt.Sprintf(InfoCreated, gleam.name), time.Now().String(), 0)
 	return err
 }
 
 func (gleam *Gleam) unregister() error {
-	if _, err := gleam.client.Set(fmt.Sprintf(InfoRemoved, gleam.id), time.Now().String(), 0); err != nil {
+	if _, err := gleam.client.Set(fmt.Sprintf(InfoRemoved, gleam.name), time.Now().String(), 0); err != nil {
 		return err
 	}
-	if _, err := gleam.client.SetDir(fmt.Sprintf(InfoFile, gleam.id), 5); err != nil {
+	if _, err := gleam.client.SetDir(fmt.Sprintf(InfoFile, gleam.name), 5); err != nil {
 		return err
 	}
-	if _, err := gleam.client.Delete(fmt.Sprintf(NodeFile, gleam.id), true); err != nil {
+	if _, err := gleam.client.Delete(fmt.Sprintf(NodeFile, gleam.name), true); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (gleam *Gleam) WatchNode(id string) {
-	gleam.id = id
-	gleam.Watch(MakeNode(id))
+func (gleam *Gleam) WatchNode(name string) {
+	gleam.name = name
+	gleam.Watch(MakeNode(name))
 }
 
 func (gleam *Gleam) WatchRegion(region string) {
@@ -151,13 +151,13 @@ func (gleam *Gleam) err(err error) {
 	if e, ok := err.(*etcd.EtcdError); ok && e.ErrorCode == etcd.ErrCodeEtcdNotReachable {
 		return
 	}
-	gleam.client.Set(fmt.Sprintf(InfoError, gleam.id), err.Error(), 0)
+	gleam.client.Set(fmt.Sprintf(InfoError, gleam.name), err.Error(), 0)
 }
 
 func MakeRegion(region string) string {
 	return fmt.Sprintf(RegionFile, region)
 }
 
-func MakeNode(id string) string {
-	return fmt.Sprintf(NodeFile, id)
+func MakeNode(name string) string {
+	return fmt.Sprintf(NodeFile, name)
 }
