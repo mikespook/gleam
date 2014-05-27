@@ -31,7 +31,7 @@ func main() {
 		for k, v := range m {
 			fmt.Printf("\t%s =>\n", k)
 			fmt.Printf("\t\tcreated\t=> %s\n", v[k+"/created"])
-			fmt.Printf("\t\tremoved\t=> %s\n", v[k+"/removed"])
+			fmt.Printf("\t\tlast\t=> %s\n", v[k+"/last"])
 			fmt.Printf("\t\terror\t=> %s\n", v[k+"/error"])
 		}
 	case "region":

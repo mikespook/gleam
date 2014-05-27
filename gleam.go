@@ -18,7 +18,7 @@ const (
 	InfoDir     = Root + "/info"
 	InfoFile    = InfoDir + "/%s"
 	InfoCreated = InfoFile + "/created"
-	InfoRemoved = InfoFile + "/removed"
+	InfoLast    = InfoFile + "/last"
 	InfoError   = InfoFile + "/error"
 	QUEUE_SIZE  = 16
 )
@@ -87,10 +87,7 @@ func (gleam *Gleam) register() error {
 }
 
 func (gleam *Gleam) unregister() error {
-	if _, err := gleam.client.Set(fmt.Sprintf(InfoRemoved, gleam.name), time.Now().String(), 0); err != nil {
-		return err
-	}
-	if _, err := gleam.client.SetDir(fmt.Sprintf(InfoFile, gleam.name), 5); err != nil {
+	if _, err := gleam.client.Delete(fmt.Sprintf(InfoFile, gleam.name), true); err != nil {
 		return err
 	}
 	if _, err := gleam.client.Delete(fmt.Sprintf(NodeFile, gleam.name), true); err != nil {
@@ -116,6 +113,9 @@ func (gleam *Gleam) Watch(file string) {
 		rc := make(chan *etcd.Response)
 		go func() {
 			for r := range rc {
+				if _, err := gleam.client.Set(fmt.Sprintf(InfoLast, gleam.name), r.Node.Value, 0); err != nil {
+					gleam.err(err)
+				}
 				if f, err := MarshalFunc(r.Node.Value); err != nil {
 					gleam.err(err)
 				} else {
