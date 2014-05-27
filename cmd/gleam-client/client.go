@@ -22,12 +22,16 @@ func main() {
 	}
 	switch config.Cmd {
 	case "info":
+		fmt.Println("Info:")
 		m, err := client.Info()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println("Info:")
+		if len(m) == 0 {
+			fmt.Println("\tNone")
+			return
+		}
 		for k, v := range m {
 			fmt.Printf("\t%s =>\n", k)
 			fmt.Printf("\t\tcreated\t=> %s\n", v[k+"/created"])
@@ -35,22 +39,22 @@ func main() {
 			fmt.Printf("\t\terror\t=> %s\n", v[k+"/error"])
 		}
 	case "region":
+		fmt.Println("Regions:")
 		m, err := client.List(gleam.RegionDir)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("\t%s\n", err)
 			return
 		}
-		fmt.Println("Regions:")
 		for k, v := range m {
 			fmt.Printf("\t%s => %s\n", k, v)
 		}
 	case "node":
+		fmt.Println("Node:")
 		m, err := client.List(gleam.NodeDir)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("\t%s\n", err)
 			return
 		}
-		fmt.Println("Node:")
 		for k, v := range m {
 			fmt.Printf("\t%s => %s\n", k, v)
 		}

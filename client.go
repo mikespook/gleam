@@ -1,6 +1,10 @@
 package gleam
 
-import "github.com/coreos/go-etcd/etcd"
+import (
+	"fmt"
+
+	"github.com/coreos/go-etcd/etcd"
+)
 
 type Client struct {
 	*etcd.Client
@@ -20,8 +24,13 @@ func NewClient(machines []string, cert, key, ca string) (client *Client, err err
 
 func (client *Client) List(dir string) (map[string]string, error) {
 	r, err := client.Get(dir, true, false)
-	if err != nil {
-		return nil, err
+	if e, ok := err.(*etcd.EtcdError); ok {
+		switch e.ErrorCode {
+		case 100:
+			return nil, fmt.Errorf("None")
+		default:
+			return nil, err
+		}
 	}
 	m := make(map[string]string, r.Node.Nodes.Len())
 	for _, n := range r.Node.Nodes {
