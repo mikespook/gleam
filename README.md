@@ -7,12 +7,12 @@ Gleam is a cluster for helping system operations. It works with [etcd][etcd].
 
 Every Gleam watches at least two files:
 
- * /gleam/node/$ID - for one-node tasks;
+ * /gleam/node/$NAME - for one-node tasks;
  * /gleam/region/$REGION - for cluster tasks (Every Gleam instance can 
  watch multi-regions).
 
-Gleam will register itself as file `/gleam/info/$ID` with running 
-informations. It watches the file `/gleam/node/$ID` for one-node 
+Gleam will register itself as file `/gleam/info/$NAME` with running 
+informations. It watches the file `/gleam/node/$NAME` for one-node 
 tasks. If the file was changed, Gleam will be notified.
 
 Gleam nodes watch the file `/gleam/region/$REGION` for cluster tasks.
