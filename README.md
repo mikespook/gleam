@@ -52,17 +52,17 @@ Compile Gleam, and run it:
 
 Witch takes the following flags:
 
- * -config=<path>		Path to configuration file.
- * -etcd=<host:port>	Url of etcd.
- * -ca-file=<path>		Path to the client CA file.
- * -cert-file=<path>	Path to the client cert file.
- * -key-file=<path>		Path to the client key file.
- * -name=<name>			Name of this node. `$HOST-$PID` will be used as default.
- * -region=<regions>	Regions to watch, multi-regions splite by `:`.
- * -script=<path>		Directory of lua scripts.
- * -pid=<path>			PID file.
- * -log=<path>			Log file.
- * -log\_level=<level>	Log level.
+ * -ca-file="": Path to the CA file
+ * -cert-file="": Path to the cert file
+ * -config="": Path to configuration file
+ * -etcd="http://127.0.0.1:4001": A comma-delimited list of etcd
+ * -key-file="": Path to the key file
+ * -log="": log to write (empty for STDOUT)
+ * -log-level="all": log level ('error', 'warning', 'message', 'debug', 'all' and 'none' are combined with '|')
+ * -name="$HOST-$PID": Name of this node, `$HOST-$PID` will be used as default.
+ * -pid="": PID file
+ * -region="default": A comma-delimited list of regions to watch
+ * -script="": Directory of lua scripts
 
 _The configuration settings will cover flags._
 
@@ -84,14 +84,38 @@ You can read [client's source code][client-src] for the package's usage.
 
 The cli command takes the following flags:
 
- * -config=<path>		Path to configuration file.
- * -etcd=<host:port>	Url of etcd.
- * -ca-file=<path>		Path to the client CA file.
- * -cert-file=<path>	Path to the client cert file.
- * -key-file=<path>		Path to the client key file.
- * -target=<target> 	Node name or regines, multi-targets splite by `:`.
- * -fn=<name>			Function name.
- * -data=<string>		Params.
+ * -ca-file="": Path to the CA file
+ * -cert-file="": Path to the cert file
+ * -etcd="http://127.0.0.1:4001": A comma-delimited list of etcd
+ * -key-file="": Path to the key file
+ * -log="": log to write (empty for STDOUT)
+ * -log-level="all": log level ('error', 'warning', 'message', 'debug', 'all' and 'none' are combined with '|')
+
+And commands include :
+
+ * call: Call a function on nodes file
+ * region: List all regions
+ * node: List all nodes
+ * info: List all nodes info
+
+See [shell/test\_*.sh][shell] for more information.
+
+Case study
+==========
+
+Let's see a case for synchronizing configurations.
+
+Assume we have a cluster witch need to synchronize thire crontab configurations.
+In an old school way, we may use `rsync`, `scp` or something else to synchronize the configuration from one server to the others.
+Through `gleam` we just need some steps to complate this job:
+
+ 1. `etcd` instances are running on systems in a same cluster;
+ 2. `gleam` nodes connected to the `etcd` cluster should be watching a same region(Eg. `default`);
+ 3. The configuration content has been writen to a file in `etcd`.
+ 4. Tell `gleam` call the lua script config::sync for synchronizing configuration.
+ 5. Done. 
+
+See [test\_config\_sync.sh][config-sync] for more details.
 
 Authors
 =======
@@ -112,3 +136,4 @@ See LICENSE.
  [golib]: https://github.com/mikespook/golib
  [lua-for-go]: https://github.com/aarzilli/golua/lua
  [shell]: https://github.com/mikespook/z-node/tree/master/shell
+ [config-sync]: https://github.com/mikespook/gleam/blob/master/shell/test_config_sync.sh

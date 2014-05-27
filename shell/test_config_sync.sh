@@ -19,6 +19,7 @@ $GOBIN/etcdctl set $target < $source > /dev/null
 pushd . > /dev/null
 cd ../cmd/gleam-client/
 go build
+# gleam-client call [file] [func-name] [data]
 ./gleam-client call /gleam/region/default config::sync $target
 popd > /dev/null
 
