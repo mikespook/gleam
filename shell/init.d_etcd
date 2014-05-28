@@ -1,21 +1,21 @@
 #!/bin/bash
 ### BEGIN INIT INFO
-# Provides:          gleam
+# Provides:          etcd
 # Required-Start:    $network $remote_fs $local_fs 
 # Required-Stop:     $network $remote_fs $local_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Stop/start gleam
+# Short-Description: Stop/start etcd
 ### END INIT INFO
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-NAME=gleam
-DESC=gleam
-DAEMON=/usr/bin/gleam
+NAME=etcd
+DESC=etcd
+DAEMON=/usr/bin/etcd
 
 
-if [ -f /etc/$NAME.conf ]; then  
-	CONFIG=/etc/$NAME.conf
+if [ -f /etc/$NAME/$NAME.conf ]; then  
+	CONFIG=/etc/$NAME/$NAME.conf
 elif [ -f $NAME.conf ]; then
 	CONFIG=$NAME.conf
 else
@@ -23,38 +23,40 @@ else
 	exit 1
 fi
 
-PID=`sed -n 's/\(pid: \)//p' $CONFIG`
-
 test -x $DAEMON
 if [ $? -eq 1 ]; then
 	echo "Missing binary file: $DAEMON"
 	exit 1
 fi
 
+get_pid() {
+	ps -A|grep etcd|awk '{print $1}'
+}
+
+PID=`get_pid`
+
 set -e
 
 . /lib/lsb/init-functions
 
-start_gleam() {
-	if [ -f $PID ]; then
+start_etcd() {
+	if [ ! -x $PID ]; then
 		echo -n "Already started " && return 1
 	fi
 	$DAEMON -config=$CONFIG &
 }
 
-stop_gleam() {
-	[ ! -f $PID ] && echo -n "Not running " && return 1
-	p=`cat $PID`
-	[ -n "$p" ] && kill -INT $p &> /dev/null
+stop_etcd() {
+	[ -x $PID ] && echo -n "Not running " && return 1
+	[ -n "$PID" ] && kill -INT $PID &> /dev/null
 	if [ $? -ne 0 ]; then
-		rm $PID
 		return 1
 	fi
 }
 
 waitstart() {
 	i=0
-	while [ ! -f $PID ] ; do
+	while [ -x `get_pid` ] ; do
 		echo -n .
 		sleep 0.2
 		if [ $i -gt 50 ]; then
@@ -66,7 +68,7 @@ waitstart() {
 
 waitstop() {	
 	i=0
-	while [ -f $PID ] ; do
+	while [ ! -x `get_pid` ] ; do
 		echo -n .
 		sleep 0.2
 		if [ $i -gt 50 ]; then
@@ -77,7 +79,7 @@ waitstop() {
 }
 
 _start() { 
-	if start_gleam; then
+	if start_etcd; then
 		if waitstart; then
 			echo "... OK."
 		else
@@ -89,7 +91,7 @@ _start() {
 }
 
 _stop() {
-	if stop_gleam; then
+	if stop_etcd; then
 		if waitstop; then
 			echo "... OK."
 		else
