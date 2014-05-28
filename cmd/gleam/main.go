@@ -1,10 +1,7 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/mikespook/golib/log"
 	"github.com/mikespook/golib/pid"
@@ -67,52 +64,4 @@ func main() {
 
 	sh.Loop()
 	log.Message("Exit!")
-}
-
-func InitConfig() (*Config, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-	var configFile, etcd, caFile, certFile, keyFile, name, region, script, pidFile string
-	if !flag.Parsed() {
-		flag.StringVar(&configFile, "config", "", "Path to configuration file")
-		flag.StringVar(&etcd, "etcd", "http://127.0.0.1:4001", "A comma-delimited list of etcd")
-		flag.StringVar(&caFile, "ca-file", "", "Path to the CA file")
-		flag.StringVar(&certFile, "cert-file", "", "Path to the cert file")
-		flag.StringVar(&keyFile, "key-file", "", "Path to the key file")
-		flag.StringVar(&name, "name", fmt.Sprintf("%s-%d", hostname, os.Getpid()), "Name of this node")
-		flag.StringVar(&region, "region", "default", "A comma-delimited list of regions to watch")
-		flag.StringVar(&script, "script", "", "Directory of lua scripts")
-		flag.StringVar(&pidFile, "pid", "", "PID file")
-
-		flag.Parse()
-	}
-	log.InitWithFlag()
-
-	config := Config{
-		Name:   name,
-		Pid:    pidFile,
-		Script: script,
-		Region: strings.Split(region, ","),
-		Etcd:   strings.Split(etcd, ","),
-		Ca:     caFile,
-		Cert:   certFile,
-		Key:    keyFile,
-		Log: struct {
-			File  string
-			Level string
-		}{*log.LogFile, *log.LogLevel},
-	}
-
-	if configFile == "" {
-		configFile = os.Getenv(CONFIG_FILE)
-	}
-
-	if configFile != "" {
-		if err := LoadConfig(configFile, &config); err != nil {
-			return nil, err
-		}
-	}
-	return &config, nil
 }
