@@ -13,6 +13,9 @@ etcd: ["127.0.0.1:4001", "127.0.0.1:4002"]
 ca:
 cert:
 key:
+log:
+ file: /tmp/gleam.log
+ level: all
 `
 
 func TestParseConfig(t *testing.T) {
@@ -43,5 +46,11 @@ func TestParseConfig(t *testing.T) {
 	}
 	if config.Key != "" {
 		t.Errorf("Wrong etcd ca: %s", config.Key)
+	}
+	if config.Log.File != "/tmp/gleam.log" {
+		t.Errorf("Wrong log file: %s", config.Log.File)
+	}
+	if config.Log.Level != "all" {
+		t.Errorf("Wrong log level: %s", config.Log.Level)
 	}
 }

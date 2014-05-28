@@ -15,6 +15,10 @@ type Config struct {
 	Ca     string
 	Cert   string
 	Key    string
+	Log    struct {
+		File  string
+		Level string
+	}
 }
 
 func LoadConfig(filename string, config *Config) error {

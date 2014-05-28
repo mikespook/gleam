@@ -99,6 +99,10 @@ func InitConfig() (*Config, error) {
 		Ca:     caFile,
 		Cert:   certFile,
 		Key:    keyFile,
+		Log: struct {
+			File  string
+			Level string
+		}{*log.LogFile, *log.LogLevel},
 	}
 
 	if configFile == "" {
