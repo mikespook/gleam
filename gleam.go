@@ -2,162 +2,81 @@ package gleam
 
 import (
 	"fmt"
-	"sync"
-	"time"
+	"log"
+	"os"
+	"syscall"
 
-	"github.com/coreos/go-etcd/etcd"
-	"github.com/mikespook/golib/iptpool"
-)
-
-const (
-	Root        = "/gleam"
-	RegionDir   = Root + "/region"
-	RegionFile  = RegionDir + "/%s"
-	NodeDir     = Root + "/node"
-	NodeFile    = NodeDir + "/%s"
-	InfoDir     = Root + "/info"
-	InfoFile    = InfoDir + "/%s"
-	InfoCreated = InfoFile + "/created"
-	InfoLast    = InfoFile + "/last"
-	InfoError   = InfoFile + "/error"
-	QUEUE_SIZE  = 16
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/mikespook/golib/signal"
 )
 
 type Gleam struct {
-	ErrHandler ErrorHandlerFunc
-	iptPool    *iptpool.IptPool
-	w          sync.WaitGroup
-
-	name string
-
-	closeChans map[string]chan bool
-	fChan      chan *Func
-
-	client *etcd.Client
+	lua        *luaEnv
+	config     Config
+	mqttClient mqtt.Client
 }
 
-func New(machines []string, script string, cert, key, ca string) (gleam *Gleam, err error) {
-	gleam = &Gleam{
-		closeChans: make(map[string]chan bool, 2),
-		fChan:      make(chan *Func, 32),
-		iptPool:    iptpool.NewIptPool(NewLuaIpt),
+func NewGleam(root string) *Gleam {
+	return &Gleam{
+		lua: newLuaEnv(root),
 	}
-	gleam.iptPool.OnCreate = func(ipt iptpool.ScriptIpt) error {
-		ipt.Init(script)
-		ipt.Bind("Get", gleam.luaGet)
-		ipt.Bind("GetDir", gleam.luaGetDir)
-		ipt.Bind("Set", gleam.luaSet)
-		ipt.Bind("Delete", gleam.luaDelete)
-		ipt.Bind("Watch", gleam.luaWatch)
-		return nil
-	}
-	if cert != "" && key != "" && ca != "" {
-		if gleam.client, err = etcd.NewTLSClient(machines, cert, key, ca); err != nil {
-			return
-		}
-	} else {
-		gleam.client = etcd.NewClient(machines)
-	}
-	return
 }
 
-func (gleam *Gleam) Serve() (err error) {
-	if err = gleam.register(); err != nil {
-		return
+func (g *Gleam) Init() error {
+	g.config.Brokers = []string{
+		"tcp://iot.eclipse.org:1883",
 	}
-	for f := range gleam.fChan {
-		go func(f *Func) {
-			ipt := gleam.iptPool.Get()
-			defer gleam.iptPool.Put(ipt)
-			if err := ipt.Exec(f.Name, f.Data); err != nil {
-				gleam.err(err)
-				return
-			}
-		}(f)
-	}
-	if err = gleam.unregister(); err != nil {
-		return
-	}
-	return
-}
-
-func (gleam *Gleam) register() error {
-	_, err := gleam.client.Set(fmt.Sprintf(InfoCreated, gleam.name), time.Now().String(), 0)
-	return err
-}
-
-func (gleam *Gleam) unregister() error {
-	if _, err := gleam.client.Delete(fmt.Sprintf(InfoFile, gleam.name), true); err != nil {
+	if err := g.lua.Init(&g.config); err != nil {
 		return err
 	}
-	if _, err := gleam.client.Delete(fmt.Sprintf(NodeFile, gleam.name), true); err != nil {
+
+	log.Printf("%+v", g.config)
+
+	if err := g.initMQTT(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (gleam *Gleam) WatchNode(name string) {
-	gleam.name = name
-	gleam.Watch(MakeNode(name))
-}
-
-func (gleam *Gleam) WatchRegion(region string) {
-	gleam.Watch(MakeRegion(region))
-}
-
-func (gleam *Gleam) Watch(file string) {
-	gleam.closeChans[file] = make(chan bool)
-	gleam.w.Add(1)
-	go func() {
-		defer gleam.w.Done()
-		rc := make(chan *etcd.Response)
-		go func() {
-			for r := range rc {
-				if _, err := gleam.client.Set(fmt.Sprintf(InfoLast, gleam.name), r.Node.Value, 0); err != nil {
-					gleam.err(err)
-				}
-				if f, err := MarshalFunc(r.Node.Value); err != nil {
-					gleam.err(err)
-				} else {
-					gleam.fChan <- f
-				}
-			}
-		}()
-		if _, err := gleam.client.Watch(file, 0, false, rc, gleam.closeChans[file]); err != nil {
-			if err != etcd.ErrWatchStoppedByUser {
-				gleam.err(err)
-			}
-		}
-	}()
-}
-
-func (gleam *Gleam) Wait() {
-	gleam.w.Wait()
-}
-
-func (gleam *Gleam) Close() error {
-	for _, c := range gleam.closeChans {
-		close(c)
+func (g *Gleam) initMQTT() error {
+	opts := mqtt.NewClientOptions()
+	for _, broker := range g.config.Brokers {
+		opts.AddBroker(broker)
 	}
-	close(gleam.fChan)
-	gleam.w.Wait()
+	opts.SetClientID(g.config.ClientId)
+	opts.SetDefaultPublishHandler(g.lua.defaultHandler)
+	opts.SetAutoReconnect(true)
+	g.mqttClient = mqtt.NewClient(opts)
+	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	for name, qos := range g.config.Tasks {
+		g.mqttClient.Subscribe(fmt.Sprintf("%s/%s", g.config.Prefix, name), qos, g.lua.newHandler(name))
+	}
 	return nil
 }
 
-func (gleam *Gleam) err(err error) {
-	if gleam.ErrHandler != nil {
-		gleam.ErrHandler(err)
-	}
-	if e, ok := err.(*etcd.EtcdError); ok && e.ErrorCode == etcd.ErrCodeEtcdNotReachable {
-		return
-	}
-	gleam.client.Set(fmt.Sprintf(InfoError, gleam.name), err.Error(), 0)
+func (g *Gleam) Serve() error {
+	sh := signal.New(nil)
+	sh.Bind(os.Interrupt, func() uint {
+		return signal.BreakExit
+	})
+	sh.Bind(syscall.SIGHUP, func() uint {
+		for name, qos := range g.config.Tasks {
+			topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
+			g.mqttClient.Unsubscribe(topic)
+			g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name))
+		}
+		return signal.Continue
+	})
+	sh.Wait()
+	return nil
 }
 
-func MakeRegion(region string) string {
-	return fmt.Sprintf(RegionFile, region)
-}
-
-func MakeNode(name string) string {
-	return fmt.Sprintf(NodeFile, name)
+func (g *Gleam) Final() error {
+	for name := range g.config.Tasks {
+		g.mqttClient.Unsubscribe(fmt.Sprintf("%s/%s", g.config.Prefix, name))
+	}
+	g.mqttClient.Disconnect(500)
+	return g.lua.Final()
 }

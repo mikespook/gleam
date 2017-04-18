@@ -1,90 +1,95 @@
 package gleam
 
 import (
+	"log"
+	"os"
 	"path"
-	"strings"
 
-	"github.com/aarzilli/golua/lua"
-	"github.com/mikespook/golib/iptpool"
-	"github.com/mikespook/golib/log"
-	"github.com/stevedonovan/luar"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	lua "github.com/yuin/gopher-lua"
 )
 
-const module = "gleam"
-
-type LuaIpt struct {
-	state *lua.State
-	path  string
+type luaEnv struct {
+	root  string
+	state *lua.LState
 }
 
-func NewLuaIpt() iptpool.ScriptIpt {
-	return &LuaIpt{}
-}
-
-func (luaipt *LuaIpt) Exec(name string, data interface{}) error {
-	name = strings.Replace(name, ":", "/", -1)
-	f := path.Join(luaipt.path, name+".lua")
-	luaipt.Bind("Data", luar.NewLuaObjectFromValue(luaipt.state, data))
-	return luaipt.state.DoFile(f)
-}
-
-func (luaipt *LuaIpt) Init(path string) error {
-	luaipt.state = luar.Init()
-	luaipt.Bind("Debugf", log.Debugf)
-	luaipt.Bind("Debug", log.Debug)
-	luaipt.Bind("Messagef", log.Messagef)
-	luaipt.Bind("Message", log.Message)
-	luaipt.Bind("Warningf", log.Warningf)
-	luaipt.Bind("Warning", log.Warning)
-	luaipt.Bind("Errorf", log.Errorf)
-	luaipt.Bind("Error", log.Error)
-	luaipt.path = path
-	return nil
-}
-
-func (luaipt *LuaIpt) Final() error {
-	luaipt.state.Close()
-	return nil
-}
-
-func (luaipt *LuaIpt) Bind(name string, item interface{}) error {
-	luar.Register(luaipt.state, module, luar.Map{
-		name: item,
-	})
-	return nil
-}
-
-func (gleam *Gleam) luaGet(key string) (string, error) {
-	r, err := gleam.client.Get(key, false, false)
-	if err != nil {
-		return "", err
+func newLuaEnv(root string) *luaEnv {
+	return &luaEnv{
+		root: root,
 	}
-	return r.Node.Value, nil
 }
 
-func (gleam *Gleam) luaGetDir(key string) (map[string]string, error) {
-	r, err := gleam.client.Get(key, false, false)
-	if err != nil {
-		return nil, err
+func (l *luaEnv) Init(config *Config) error {
+	opt := lua.Options{
+		CallStackSize:       1024,
+		IncludeGoStackTrace: true,
+		RegistrySize:        1024 * 64,
+		SkipOpenLibs:        false,
 	}
-	s := make(map[string]string, r.Node.Nodes.Len())
-	for _, n := range r.Node.Nodes {
-		s[n.Key] = n.Value
+	l.state = lua.NewState(opt)
+	l.state.SetGlobal("Log", l.state.NewFunction(func(L *lua.LState) int {
+		log.Print(L.GetTop())
+		return 0
+	}))
+	l.state.SetGlobal("Logf", l.state.NewFunction(func(L *lua.LState) int {
+		return 0
+	}))
+	if err := l.mustDoScript("init"); err != nil {
+		return err
 	}
-	return s, nil
+	return config.L(l.state)
 }
 
-func (gleam *Gleam) luaSet(key, value string, ttl uint64) error {
-	_, err := gleam.client.Set(key, value, ttl)
+func (l *luaEnv) Final() error {
+	err := l.mustDoScript("final")
+	l.state.Close()
 	return err
 }
 
-func (gleam *Gleam) luaDelete(key string) error {
-	_, err := gleam.client.Delete(key, true)
-	return err
+func (l *luaEnv) mustDoScript(name string) error {
+	script := path.Join(l.root, name+".lua")
+	if _, err := os.Stat(script); err != nil {
+		return err
+	}
+	if err := l.state.DoFile(script); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (gleam *Gleam) luaWatch(key string) (string, bool, error) {
-	r, err := gleam.client.Watch(key, 0, false, nil, nil)
-	return r.Node.Value, r.Node.Dir, err
+func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
+	script := path.Join(l.root, name+".lua")
+	if _, err := os.Stat(script); err != nil {
+		return nil
+	}
+	return func(client mqtt.Client, msg mqtt.Message) {
+		state, cancel := l.state.NewThread()
+		defer cancel()
+		if err := state.DoFile(script); err != nil {
+			log.Printf("MsgErr[%X]: %s", msg.MessageID(), err)
+		}
+		defer state.Close()
+	}
+}
+
+func (l *luaEnv) defaultHandler(client mqtt.Client, msg mqtt.Message) {
+
+	p := lua.P{
+		Fn:      l.state.GetGlobal("DefaultPublishHandler"),
+		NRet:    0,
+		Protect: true,
+	}
+
+	msgL := &lua.LTable{}
+	msgL.RawSetString("Duplicate", lua.LBool(msg.Duplicate()))
+	msgL.RawSetString("MessageID", lua.LNumber(msg.MessageID()))
+	msgL.RawSetString("Payload", lua.LString(msg.Payload()))
+	msgL.RawSetString("Qos", lua.LNumber(msg.Qos()))
+	msgL.RawSetString("Retained", lua.LBool(msg.Retained()))
+	msgL.RawSetString("Topic", lua.LString(msg.Topic()))
+
+	if err := l.state.CallByParam(p, msgL); err != nil {
+		log.Printf("DefMsgErr[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
+	}
 }
