@@ -30,8 +30,6 @@ func (g *Gleam) Init() error {
 		return err
 	}
 
-	log.Printf("%+v", g.config)
-
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
@@ -42,8 +40,10 @@ func (g *Gleam) initMQTT() error {
 	opts := mqtt.NewClientOptions()
 	for _, broker := range g.config.Brokers {
 		opts.AddBroker(broker)
+		log.Printf("Add Broker: %s", broker)
 	}
 	opts.SetClientID(g.config.ClientId)
+	log.Printf("ClientId: %s", g.config.ClientId)
 	opts.SetDefaultPublishHandler(g.lua.defaultHandler)
 	opts.SetAutoReconnect(true)
 	g.mqttClient = mqtt.NewClient(opts)
@@ -51,7 +51,11 @@ func (g *Gleam) initMQTT() error {
 		return token.Error()
 	}
 	for name, qos := range g.config.Tasks {
-		g.mqttClient.Subscribe(fmt.Sprintf("%s/%s", g.config.Prefix, name), qos, g.lua.newHandler(name))
+		topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
+		if token := g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name)); token.Wait() && token.Error() != nil {
+			return token.Error()
+		}
+		log.Printf("Subscribe: %s = %d", topic, qos)
 	}
 	return nil
 }
@@ -62,10 +66,17 @@ func (g *Gleam) Serve() error {
 		return signal.BreakExit
 	})
 	sh.Bind(syscall.SIGHUP, func() uint {
+		log.Printf("Reloading scripts")
 		for name, qos := range g.config.Tasks {
 			topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
-			g.mqttClient.Unsubscribe(topic)
-			g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name))
+			if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
+				log.Printf("Unsubscribe error: %s", token.Error())
+			}
+			log.Printf("Unsubscribe: %s", topic)
+			if token := g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name)); token.Wait() && token.Error() != nil {
+				log.Printf("Subscribe error: %s", token.Error())
+			}
+			log.Printf("Subscribe: %s = %d", topic, qos)
 		}
 		return signal.Continue
 	})
@@ -75,7 +86,11 @@ func (g *Gleam) Serve() error {
 
 func (g *Gleam) Final() error {
 	for name := range g.config.Tasks {
-		g.mqttClient.Unsubscribe(fmt.Sprintf("%s/%s", g.config.Prefix, name))
+		topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
+		if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
+			log.Printf("Unsubscribe error: %s", token.Error())
+		}
+		log.Printf("Unsubscribe: %s", topic)
 	}
 	g.mqttClient.Disconnect(500)
 	return g.lua.Final()

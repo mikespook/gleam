@@ -1,1 +1,1 @@
-Logf("%s", "Finalisation")
+Log("Finalisation")

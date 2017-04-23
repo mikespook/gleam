@@ -29,12 +29,26 @@ func (l *luaEnv) Init(config *Config) error {
 	}
 	l.state = lua.NewState(opt)
 	l.state.SetGlobal("Log", l.state.NewFunction(func(L *lua.LState) int {
-		log.Print(L.GetTop())
+		argc := L.GetTop()
+		argv := make([]interface{}, argc)
+		for i := 1; i <= argc; i++ {
+			argv[i-1] = L.Get(i)
+		}
+		log.Print(argv...)
 		return 0
 	}))
 	l.state.SetGlobal("Logf", l.state.NewFunction(func(L *lua.LState) int {
+		argc := L.GetTop()
+		format := L.Get(1).String()
+		argv := make([]interface{}, argc-1)
+		for i := 2; i <= argc; i++ {
+			argv[i-2] = L.Get(i)
+		}
+		log.Printf(format, argv...)
 		return 0
 	}))
+	cfg := l.state.NewTable()
+	l.state.SetGlobal("config", cfg)
 	if err := l.mustDoScript("init"); err != nil {
 		return err
 	}
@@ -74,7 +88,6 @@ func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
 }
 
 func (l *luaEnv) defaultHandler(client mqtt.Client, msg mqtt.Message) {
-
 	p := lua.P{
 		Fn:      l.state.GetGlobal("DefaultPublishHandler"),
 		NRet:    0,
