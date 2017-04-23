@@ -7,6 +7,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	lua "github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
 )
 
 type luaEnv struct {
@@ -47,12 +48,8 @@ func (l *luaEnv) Init(config *Config) error {
 		log.Printf(format, argv...)
 		return 0
 	}))
-	cfg := l.state.NewTable()
-	l.state.SetGlobal("config", cfg)
-	if err := l.mustDoScript("init"); err != nil {
-		return err
-	}
-	return config.L(l.state)
+	l.state.SetGlobal("config", luar.New(l.state, config))
+	return l.mustDoScript("init")
 }
 
 func (l *luaEnv) Final() error {
@@ -79,7 +76,17 @@ func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
 		state, cancel := l.state.NewThread()
-		defer cancel()
+		defer func() {
+			if cancel != nil {
+				cancel()
+			}
+		}()
+
+		clientL := luar.New(l.state, client)
+		state.SetGlobal("Client", clientL)
+		msgL := messageToLua(l.state, msg)
+		state.SetGlobal("Message", msgL)
+
 		if err := state.DoFile(script); err != nil {
 			log.Printf("MsgErr[%X]: %s", msg.MessageID(), err)
 		}
@@ -94,15 +101,21 @@ func (l *luaEnv) defaultHandler(client mqtt.Client, msg mqtt.Message) {
 		Protect: true,
 	}
 
-	msgL := &lua.LTable{}
+	clientL := luar.New(l.state, client)
+	msgL := messageToLua(l.state, msg)
+
+	if err := l.state.CallByParam(p, clientL, msgL); err != nil {
+		log.Printf("DefMsgErr[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
+	}
+}
+
+func messageToLua(L *lua.LState, msg mqtt.Message) *lua.LTable {
+	msgL := L.CreateTable(0, 6)
 	msgL.RawSetString("Duplicate", lua.LBool(msg.Duplicate()))
 	msgL.RawSetString("MessageID", lua.LNumber(msg.MessageID()))
 	msgL.RawSetString("Payload", lua.LString(msg.Payload()))
 	msgL.RawSetString("Qos", lua.LNumber(msg.Qos()))
 	msgL.RawSetString("Retained", lua.LBool(msg.Retained()))
 	msgL.RawSetString("Topic", lua.LString(msg.Topic()))
-
-	if err := l.state.CallByParam(p, msgL); err != nil {
-		log.Printf("DefMsgErr[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
-	}
+	return msgL
 }

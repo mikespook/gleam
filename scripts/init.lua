@@ -10,6 +10,6 @@ config.Tasks["test2"] = 0
 config.Tasks["test3"] = 0
 
 function DefaultPublishHandler(c,m) 
-	Log(c, m)
+	Log(m.Payload)
 end
 
