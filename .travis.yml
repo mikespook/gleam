@@ -3,4 +3,8 @@ go:
   - tip
 before_install:
   - sudo apt-get install -qq liblua5.1-0-dev
+  - go get github.com/eclipse/paho.mqtt.golang
+  - go get github.com/mikespook/golib/signal
+  - go get github.com/yuin/gopher-lua
+  - go get layeh.com/gopher-luar
 
