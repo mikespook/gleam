@@ -7,4 +7,9 @@ before_install:
   - go get github.com/mikespook/golib/signal
   - go get github.com/yuin/gopher-lua
   - go get layeh.com/gopher-luar
+  - go get github.com/cjoudrey/gluahttp
+  - go get github.com/cjoudrey/gluaurl
+  - go get github.com/yuin/gluare
+  - go get layeh.com/gopher-json
+  - go get layeh.com/gopher-lfs
 
