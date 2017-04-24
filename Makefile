@@ -28,7 +28,7 @@ flamegraph:
 	rm cpu.prof gorbac.test torch.svg
 
 pack:
-	mkdir _dist
+	mkdir -p _dist
 	go build ./cmd/gleam/
 	mv ./gleam ./_dist/
 	cp ./shell/* ./_dist/

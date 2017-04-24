@@ -2,12 +2,18 @@ package gleam
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"path"
 
+	"github.com/cjoudrey/gluahttp"
+	"github.com/cjoudrey/gluaurl"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
-	luar "layeh.com/gopher-luar"
+	"layeh.com/gopher-json"
+	"layeh.com/gopher-lfs"
+	"layeh.com/gopher-luar"
 )
 
 type luaEnv struct {
@@ -22,6 +28,9 @@ func newLuaEnv(root string) *luaEnv {
 }
 
 func (l *luaEnv) Init(config *Config) error {
+	if err := os.Chdir(l.root); err != nil {
+		return err
+	}
 	opt := lua.Options{
 		CallStackSize:       1024,
 		IncludeGoStackTrace: true,
@@ -29,6 +38,11 @@ func (l *luaEnv) Init(config *Config) error {
 		SkipOpenLibs:        false,
 	}
 	l.state = lua.NewState(opt)
+	json.Preload(l.state)
+	lfs.Preload(l.state)
+	l.state.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{}).Loader)
+	l.state.PreloadModule("re", gluare.Loader)
+	l.state.PreloadModule("url", gluaurl.Loader)
 	l.state.SetGlobal("Log", l.state.NewFunction(func(L *lua.LState) int {
 		argc := L.GetTop()
 		argv := make([]interface{}, argc)
