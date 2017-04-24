@@ -1,3 +1,4 @@
+foobar = require("foobar/foobar")
 Logf("Initialisation")
 
 config.Brokers = {"tcp://iot.eclipse.org:1883"}
