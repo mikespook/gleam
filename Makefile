@@ -31,5 +31,13 @@ pack:
 	mkdir -p _dist
 	go build ./cmd/gleam/
 	mv ./gleam ./_dist/
-	cp ./shell/* ./_dist/
+	cp ./utils/* ./_dist/
 	cp -r ./scripts ./_dist/
+
+pack-docker: pack
+	CGO_ENABLED=0 GOOS=linux go build -a -tags netgo -ldflags '-w' ./cmd/gleam/
+	mv ./gleam ./_dist/
+	sudo docker build -t mikespook/gleam _dist/
+
+docker:
+	sudo docker run mikespook/gleam
