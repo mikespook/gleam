@@ -13,6 +13,7 @@ NAME=gleam
 DESC=gleam
 DAEMON=/usr/local/bin/gleam
 PID=/run/$NAME.pid
+LOG=/var/log/$NAME.log
 
 test -x $DAEMON
 if [ $? -eq 1 ]; then
@@ -28,7 +29,7 @@ start_gleam() {
 	if [ -f $PID ]; then
 		echo -n "Already started " && return 1
 	fi
-	$DAEMON -scripts=/usr/local/share/gleam &
+	$DAEMON -scripts=/usr/local/share/gleam &>> $LOG &
 	echo $! > $PID
 	return 0
 }
