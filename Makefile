@@ -32,3 +32,4 @@ pack:
 	go build ./cmd/gleam/
 	mv ./gleam ./_dist/
 	cp ./shell/* ./_dist/
+	cp -r ./scripts ./_dist/
