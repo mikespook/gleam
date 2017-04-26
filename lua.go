@@ -73,7 +73,7 @@ func (l *luaEnv) Final() error {
 }
 
 func (l *luaEnv) mustDoScript(name string) error {
-	script := path.Join(l.root, name+".lua")
+	script := name + ".lua"
 	if _, err := os.Stat(script); err != nil {
 		return err
 	}
