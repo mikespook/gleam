@@ -4,13 +4,14 @@ Logf("Initialisation")
 config.Brokers = {"tcp://iot.eclipse.org:1883"}
 config.Prefix = "gleam"
 config.ClientId = "testing"
-config.StateUpdate = 30
 config.Tasks = {}
 config.Tasks["test1"] = 0
 config.Tasks["test2"] = 0
 config.Tasks["test3"] = 0
+config.Schedule.Tick = 1000
+config.Schedule.Tasks = {}
+config.Schedule.Tasks["task1"] = 5000
 
 function DefaultPublishHandler(c,m) 
 	Log(m.Payload)
 end
-

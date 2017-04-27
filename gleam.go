@@ -29,7 +29,6 @@ func (g *Gleam) Init() error {
 	if err := g.lua.Init(&g.config); err != nil {
 		return err
 	}
-
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
