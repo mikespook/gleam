@@ -1,7 +1,13 @@
 foobar = require("foobar/foobar")
 Logf("Initialisation")
 
-config.Brokers = {"tcp://iot.eclipse.org:1883"}
+config.MQTT = {
+	{
+		Addr = "tcp://iot.eclipse.org:1883",
+		Username = "",
+		Password = ""
+	}
+}
 config.Prefix = "gleam"
 config.ClientId = "testing"
 config.Tasks = {}

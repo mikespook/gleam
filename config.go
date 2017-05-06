@@ -5,11 +5,17 @@ import (
 )
 
 type Config struct {
-	Brokers  []string
+	MQTT     []ConfigMQTT
 	Prefix   string
 	ClientId string
 	Tasks    map[string]byte
 	Schedule ConfigSchedule
+}
+
+type ConfigMQTT struct {
+	Addr     string
+	Username string
+	Password string
 }
 
 type ConfigSchedule struct {

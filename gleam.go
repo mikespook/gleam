@@ -23,9 +23,6 @@ func NewGleam(root string) *Gleam {
 }
 
 func (g *Gleam) Init() error {
-	g.config.Brokers = []string{
-		"tcp://iot.eclipse.org:1883",
-	}
 	if err := g.lua.Init(&g.config); err != nil {
 		return err
 	}
@@ -37,9 +34,12 @@ func (g *Gleam) Init() error {
 
 func (g *Gleam) initMQTT() error {
 	opts := mqtt.NewClientOptions()
-	for _, broker := range g.config.Brokers {
-		opts.AddBroker(broker)
-		log.Printf("Add Broker: %s", broker)
+	for _, broker := range g.config.MQTT {
+		opts.AddBroker(broker.Addr)
+		log.Printf("Add Broker: %s@%s", broker.Username, broker.Addr)
+		if broker.Username != "" {
+			opts.SetUsername(broker.Username).SetPassword(broker.Password)
+		}
 	}
 	opts.SetClientID(g.config.ClientId)
 	log.Printf("ClientId: %s", g.config.ClientId)
