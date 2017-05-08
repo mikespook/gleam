@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 
 	"github.com/cjoudrey/gluahttp"
 	"github.com/cjoudrey/gluaurl"
@@ -84,7 +83,7 @@ func (l *luaEnv) mustDoScript(name string) error {
 }
 
 func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
-	script := path.Join(l.root, name+".lua")
+	script := name + ".lua"
 	if _, err := os.Stat(script); err != nil {
 		return nil
 	}
