@@ -29,6 +29,14 @@ func (g *Gleam) Init() error {
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
+	if err := g.initSchedule(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *Gleam) initSchedule() error {
+
 	return nil
 }
 
@@ -43,7 +51,7 @@ func (g *Gleam) initMQTT() error {
 	}
 	opts.SetClientID(g.config.ClientId)
 	log.Printf("ClientId: %s", g.config.ClientId)
-	opts.SetDefaultPublishHandler(g.lua.defaultHandler)
+	opts.SetDefaultPublishHandler(g.lua.defaultMQTTHandler)
 	opts.SetAutoReconnect(true)
 	g.mqttClient = mqtt.NewClient(opts)
 	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
@@ -51,7 +59,7 @@ func (g *Gleam) initMQTT() error {
 	}
 	for name, qos := range g.config.Tasks {
 		topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
-		if token := g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name)); token.Wait() && token.Error() != nil {
+		if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
 			return token.Error()
 		}
 		log.Printf("Subscribe: %s = %d", topic, qos)
@@ -72,7 +80,7 @@ func (g *Gleam) Serve() error {
 				log.Printf("Unsubscribe error: %s", token.Error())
 			}
 			log.Printf("Unsubscribe: %s", topic)
-			if token := g.mqttClient.Subscribe(topic, qos, g.lua.newHandler(name)); token.Wait() && token.Error() != nil {
+			if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
 				log.Printf("Subscribe error: %s", token.Error())
 			}
 			log.Printf("Subscribe: %s = %d", topic, qos)

@@ -18,6 +18,6 @@ config.Schedule.Tick = 1000
 config.Schedule.Tasks = {}
 config.Schedule.Tasks["task1"] = 5000
 
-function DefaultPublishHandler(Client, Message) 
+function MQTTDefaultHandler(Client, Message) 
 	Logf("Default: %s", Message.Payload)
 end

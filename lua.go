@@ -82,7 +82,7 @@ func (l *luaEnv) mustDoScript(name string) error {
 	return nil
 }
 
-func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
+func (l *luaEnv) newMQTTHandler(name string) mqtt.MessageHandler {
 	script := name + ".lua"
 	if _, err := os.Stat(script); err != nil {
 		return nil
@@ -101,15 +101,15 @@ func (l *luaEnv) newHandler(name string) mqtt.MessageHandler {
 		state.SetGlobal("Message", msgL)
 
 		if err := state.DoFile(script); err != nil {
-			log.Printf("MsgErr[%X]: %s", msg.MessageID(), err)
+			log.Printf("Error[%s-%X]: %s", name, msg.MessageID(), err)
 		}
 		defer state.Close()
 	}
 }
 
-func (l *luaEnv) defaultHandler(client mqtt.Client, msg mqtt.Message) {
+func (l *luaEnv) defaultMQTTHandler(client mqtt.Client, msg mqtt.Message) {
 	p := lua.P{
-		Fn:      l.state.GetGlobal("DefaultPublishHandler"),
+		Fn:      l.state.GetGlobal("MQTTDefaultHandler"),
 		NRet:    0,
 		Protect: true,
 	}
@@ -118,7 +118,7 @@ func (l *luaEnv) defaultHandler(client mqtt.Client, msg mqtt.Message) {
 	msgL := messageToLua(l.state, msg)
 
 	if err := l.state.CallByParam(p, clientL, msgL); err != nil {
-		log.Printf("DefMsgErr[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
+		log.Printf("Error[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
 	}
 }
 
