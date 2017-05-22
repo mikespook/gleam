@@ -109,10 +109,23 @@ func (l *luaEnv) newMQTTHandler(name string) mqtt.MessageHandler {
 	}
 }
 
-func (l *luaEnv) newExecFunc(name string) schego.ExecFunc {
+func (l *luaEnv) newExecFunc(name string, client mqtt.Client) schego.ExecFunc {
 	script := name + ".lua"
 	if _, err := os.Stat(script); err != nil {
-		return l.defaultExecFunc
+		return func(ctx context.Context) error {
+			p := lua.P{
+				Fn:      l.state.GetGlobal("ScheduleDefaultFunc"),
+				NRet:    0,
+				Protect: true,
+			}
+			if p.Fn.Type() == lua.LTNil {
+				return nil
+			}
+			ctxL := luar.New(l.state, ctx)
+			clientL := luar.New(l.state, client)
+			return l.state.CallByParam(p, ctxL, clientL)
+		}
+
 	}
 	return func(ctx context.Context) error {
 		state, cancel := l.state.NewThread()
@@ -122,21 +135,10 @@ func (l *luaEnv) newExecFunc(name string) schego.ExecFunc {
 			}
 		}()
 		defer state.Close()
+		clientL := luar.New(l.state, client)
+		state.SetGlobal("Client", clientL)
 		return state.DoFile(script)
 	}
-}
-
-func (l *luaEnv) defaultExecFunc(ctx context.Context) error {
-	p := lua.P{
-		Fn:      l.state.GetGlobal("ScheduleDefaultFunc"),
-		NRet:    0,
-		Protect: true,
-	}
-	if p.Fn.Type() == lua.LTNil {
-		return nil
-	}
-	ctxL := luar.New(l.state, ctx)
-	return l.state.CallByParam(p, ctxL)
 }
 
 func (l *luaEnv) errorFunc(ctx context.Context, err error) {
@@ -164,12 +166,29 @@ func (l *luaEnv) defaultMQTTHandler(client mqtt.Client, msg mqtt.Message) {
 		Protect: true,
 	}
 
+	if p.Fn.Type() == lua.LTNil {
+		return
+	}
+
 	clientL := luar.New(l.state, client)
 	msgL := messageToLua(l.state, msg)
 
 	if err := l.state.CallByParam(p, clientL, msgL); err != nil {
 		log.Printf("Error[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
 	}
+}
+
+func (l *luaEnv) onEvent(name string, client mqtt.Client) error {
+	p := lua.P{
+		Fn:      l.state.GetGlobal(name),
+		NRet:    0,
+		Protect: true,
+	}
+	if p.Fn.Type() == lua.LTNil {
+		return nil
+	}
+	clientL := luar.New(l.state, client)
+	return l.state.CallByParam(p, clientL)
 }
 
 func messageToLua(L *lua.LState, msg mqtt.Message) *lua.LTable {
