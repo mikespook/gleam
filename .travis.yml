@@ -12,4 +12,5 @@ before_install:
   - go get github.com/yuin/gluare
   - go get layeh.com/gopher-json
   - go get layeh.com/gopher-lfs
+  - go get github.com/mikespook/schego
 
