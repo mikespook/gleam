@@ -1,6 +1,7 @@
 package gleam
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"github.com/cjoudrey/gluahttp"
 	"github.com/cjoudrey/gluaurl"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/mikespook/schego"
 	"github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
 	"layeh.com/gopher-json"
@@ -104,6 +106,54 @@ func (l *luaEnv) newMQTTHandler(name string) mqtt.MessageHandler {
 			log.Printf("Error[%s-%X]: %s", name, msg.MessageID(), err)
 		}
 		defer state.Close()
+	}
+}
+
+func (l *luaEnv) newExecFunc(name string) schego.ExecFunc {
+	script := name + ".lua"
+	if _, err := os.Stat(script); err != nil {
+		return l.defaultExecFunc
+	}
+	return func(ctx context.Context) error {
+		state, cancel := l.state.NewThread()
+		defer func() {
+			if cancel != nil {
+				cancel()
+			}
+		}()
+		defer state.Close()
+		return state.DoFile(script)
+	}
+}
+
+func (l *luaEnv) defaultExecFunc(ctx context.Context) error {
+	p := lua.P{
+		Fn:      l.state.GetGlobal("ScheduleDefaultFunc"),
+		NRet:    0,
+		Protect: true,
+	}
+	if p.Fn.Type() == lua.LTNil {
+		return nil
+	}
+	ctxL := luar.New(l.state, ctx)
+	return l.state.CallByParam(p, ctxL)
+}
+
+func (l *luaEnv) errorFunc(ctx context.Context, err error) {
+	p := lua.P{
+		Fn:      l.state.GetGlobal("ErrorFunc"),
+		NRet:    0,
+		Protect: true,
+	}
+	if p.Fn.Type() == lua.LTNil {
+		return
+	}
+
+	ctxL := luar.New(l.state, ctx)
+	errL := luar.New(l.state, err)
+
+	if err := l.state.CallByParam(p, ctxL, errL); err != nil {
+		log.Printf("Scheduler Error: %s", err)
 	}
 }
 

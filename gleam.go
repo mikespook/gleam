@@ -5,15 +5,18 @@ import (
 	"log"
 	"os"
 	"syscall"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/mikespook/golib/signal"
+	"github.com/mikespook/schego"
 )
 
 type Gleam struct {
 	lua        *luaEnv
 	config     Config
 	mqttClient mqtt.Client
+	scheduler  *schego.Scheduler
 }
 
 func NewGleam(root string) *Gleam {
@@ -29,14 +32,18 @@ func (g *Gleam) Init() error {
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
-	if err := g.initSchedule(); err != nil {
+	if err := g.initSchedule(&g.config); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (g *Gleam) initSchedule() error {
-
+func (g *Gleam) initSchedule(config *Config) error {
+	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
+	g.scheduler.ErrorFunc = g.lua.errorFunc
+	for name, interval := range config.Schedule.Tasks {
+		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, g.lua.newExecFunc(name))
+	}
 	return nil
 }
 
@@ -68,6 +75,8 @@ func (g *Gleam) initMQTT() error {
 }
 
 func (g *Gleam) Serve() error {
+	go g.scheduler.Serve()
+
 	sh := signal.New(nil)
 	sh.Bind(os.Interrupt, func() uint {
 		return signal.BreakExit
@@ -92,6 +101,10 @@ func (g *Gleam) Serve() error {
 }
 
 func (g *Gleam) Final() error {
+	if err := g.scheduler.Close(); err != nil {
+		return err
+	}
+
 	for name := range g.config.Tasks {
 		topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
 		if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
