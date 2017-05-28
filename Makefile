@@ -29,7 +29,7 @@ flamegraph:
 
 pack:
 	mkdir -p _dist
-	go build ./cmd/gleam/
+	go build -ldflags "-X main.version=`date +%Y-%m-%d_%H-%M_``git log -1 --format=%h`" ./cmd/gleam/
 	mv ./gleam ./_dist/
 	cp ./utils/* ./_dist/
 	cp -r ./scripts ./_dist/
