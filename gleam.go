@@ -116,6 +116,9 @@ func (g *Gleam) Final() error {
 	if err := g.lua.onEvent("beforeFinalize", g.mqttClient); err != nil {
 		log.Printf("BeforeFinalize: %s", err)
 	}
+	if g.config.FinalTick != 0 {
+		time.Sleep(g.config.FinalTick * time.Millisecond)
+	}
 	g.mqttClient.Disconnect(500)
 	return g.lua.Final()
 }

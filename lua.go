@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/cjoudrey/gluahttp"
 	"github.com/cjoudrey/gluaurl"
@@ -18,6 +19,7 @@ import (
 )
 
 type luaEnv struct {
+	sync.RWMutex
 	root  string
 	state *lua.LState
 }
@@ -29,6 +31,8 @@ func newLuaEnv(root string) *luaEnv {
 }
 
 func (l *luaEnv) Init(config *Config) error {
+	l.Lock()
+	defer l.Unlock()
 	if err := os.Chdir(l.root); err != nil {
 		return err
 	}
@@ -90,22 +94,22 @@ func (l *luaEnv) newMQTTHandler(name string) mqtt.MessageHandler {
 		return nil
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
+		l.Lock()
 		state, cancel := l.state.NewThread()
 		defer func() {
 			if cancel != nil {
 				cancel()
 			}
+			state.Close()
 		}()
-
 		clientL := luar.New(l.state, client)
 		state.SetGlobal("Client", clientL)
 		msgL := messageToLua(l.state, msg)
 		state.SetGlobal("Message", msgL)
-
+		l.Unlock()
 		if err := state.DoFile(script); err != nil {
 			log.Printf("Error[%s-%X]: %s", name, msg.MessageID(), err)
 		}
-		defer state.Close()
 	}
 }
 
@@ -113,11 +117,13 @@ func (l *luaEnv) newExecFunc(name string, client mqtt.Client) schego.ExecFunc {
 	script := name + ".lua"
 	if _, err := os.Stat(script); err != nil {
 		return func(ctx context.Context) error {
+			l.RLock()
 			p := lua.P{
 				Fn:      l.state.GetGlobal("ScheduleDefaultFunc"),
 				NRet:    0,
 				Protect: true,
 			}
+			l.RUnlock()
 			if p.Fn.Type() == lua.LTNil {
 				return nil
 			}
@@ -128,25 +134,29 @@ func (l *luaEnv) newExecFunc(name string, client mqtt.Client) schego.ExecFunc {
 
 	}
 	return func(ctx context.Context) error {
+		l.Lock()
 		state, cancel := l.state.NewThread()
 		defer func() {
 			if cancel != nil {
 				cancel()
 			}
+			state.Close()
 		}()
-		defer state.Close()
 		clientL := luar.New(l.state, client)
 		state.SetGlobal("Client", clientL)
+		l.Unlock()
 		return state.DoFile(script)
 	}
 }
 
 func (l *luaEnv) errorFunc(ctx context.Context, err error) {
+	l.RLock()
 	p := lua.P{
 		Fn:      l.state.GetGlobal("ErrorFunc"),
 		NRet:    0,
 		Protect: true,
 	}
+	l.RUnlock()
 	if p.Fn.Type() == lua.LTNil {
 		return
 	}
@@ -160,12 +170,13 @@ func (l *luaEnv) errorFunc(ctx context.Context, err error) {
 }
 
 func (l *luaEnv) defaultMQTTHandler(client mqtt.Client, msg mqtt.Message) {
+	l.RLock()
 	p := lua.P{
 		Fn:      l.state.GetGlobal("MQTTDefaultHandler"),
 		NRet:    0,
 		Protect: true,
 	}
-
+	l.RUnlock()
 	if p.Fn.Type() == lua.LTNil {
 		return
 	}
@@ -179,11 +190,13 @@ func (l *luaEnv) defaultMQTTHandler(client mqtt.Client, msg mqtt.Message) {
 }
 
 func (l *luaEnv) onEvent(name string, client mqtt.Client) error {
+	l.RLock()
 	p := lua.P{
 		Fn:      l.state.GetGlobal(name),
 		NRet:    0,
 		Protect: true,
 	}
+	l.RUnlock()
 	if p.Fn.Type() == lua.LTNil {
 		return nil
 	}

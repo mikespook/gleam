@@ -5,11 +5,12 @@ import (
 )
 
 type Config struct {
-	MQTT     []ConfigMQTT
-	Prefix   string
-	ClientId string
-	Tasks    map[string]byte
-	Schedule ConfigSchedule
+	MQTT      []ConfigMQTT
+	Prefix    string
+	ClientId  string
+	Tasks     map[string]byte
+	Schedule  ConfigSchedule
+	FinalTick time.Duration
 }
 
 type ConfigMQTT struct {
