@@ -4,13 +4,24 @@ import (
 	"time"
 )
 
+const (
+	TopicAll        = ""
+	TopicIndividual = "i"
+	TopicBroadcast  = "b"
+)
+
 type Config struct {
 	MQTT      []ConfigMQTT
 	Prefix    string
 	ClientId  string
-	Tasks     map[string]byte
+	Tasks     map[string]ConfigTask
 	Schedule  ConfigSchedule
 	FinalTick time.Duration
+}
+
+type ConfigTask struct {
+	Qos   byte
+	Topic string
 }
 
 type ConfigMQTT struct {

@@ -14,8 +14,12 @@ config.MQTT = {
 config.Prefix = "gleam"
 config.ClientId = "testing"
 config.Tasks = {}
-config.Tasks["test1"] = 0
-config.Tasks["non-exist"] = 0
+config.Tasks["test1"] = {
+	Qos = 0
+}
+config.Tasks["non-exist"] = {
+	Topic = "i"
+}
 config.Schedule.Tick = 1000
 config.Schedule.Tasks = {}
 config.Schedule.Tasks["heartbeat"] = 5000
