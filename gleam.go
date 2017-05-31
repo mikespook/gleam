@@ -81,6 +81,9 @@ func (g *Gleam) Serve() error {
 	sh.Bind(os.Interrupt, func() uint {
 		return signal.BreakExit
 	})
+	sh.Bind(syscall.SIGTERM, func() uint {
+		return signal.BreakExit
+	})
 	sh.Bind(syscall.SIGHUP, func() uint {
 		log.Printf("Reloading scripts")
 		for name, qos := range g.config.Tasks {
