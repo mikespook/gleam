@@ -34,6 +34,13 @@ pack:
 	cp ./utils/* ./_dist/
 	cp -r ./scripts ./_dist/
 
+pack-x86:
+	mkdir -p _dist
+	env GOOS=linux GOARCH=386 go build -ldflags "-X main.version=`date +%Y-%m-%d_%H-%M_``git log -1 --format=%h`" ./cmd/gleam/
+	mv ./gleam ./_dist/
+	cp ./utils/* ./_dist/
+	cp -r ./scripts ./_dist/
+
 pack-docker: pack
 	CGO_ENABLED=0 GOOS=linux go build -a -tags netgo -ldflags '-w' ./cmd/gleam/
 	mv ./gleam ./_dist/
