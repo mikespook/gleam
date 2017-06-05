@@ -1,7 +1,6 @@
 package gleam
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"syscall"
@@ -19,9 +18,9 @@ type Gleam struct {
 	scheduler  *schego.Scheduler
 }
 
-func NewGleam(root string) *Gleam {
+func NewGleam(workdir string) *Gleam {
 	return &Gleam{
-		lua: newLuaEnv(root),
+		lua: newLuaEnv(workdir),
 	}
 }
 
@@ -42,7 +41,7 @@ func (g *Gleam) initSchedule(config *Config) error {
 	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
 	g.scheduler.ErrorFunc = g.lua.errorFunc
 	for name, interval := range config.Schedule.Tasks {
-		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, g.lua.newExecFunc(name, g.mqttClient))
+		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, g.lua.newScheduleFunc(name, g.mqttClient))
 	}
 	return nil
 }
@@ -58,30 +57,22 @@ func (g *Gleam) initMQTT() error {
 	}
 	opts.SetClientID(g.config.ClientId)
 	log.Printf("ClientId: %s", g.config.ClientId)
-	opts.SetDefaultPublishHandler(g.lua.defaultMQTTHandler)
+	opts.SetDefaultPublishHandler(g.lua.newMQTTFunc("defaultTask"))
 	opts.SetAutoReconnect(true)
 	g.mqttClient = mqtt.NewClient(opts)
 	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
-	for name, task := range g.config.Tasks {
+	for topic, task := range g.config.Tasks {
 		qos := task.Qos
-
-		if task.Topic == "" || task.Topic == TopicBroadcast {
-			topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
-			if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
-				return token.Error()
-			}
-			log.Printf("Subscribe: %s = %s (%d)", name, topic, qos)
+		if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTFunc(task.Fn)); token.Wait() && token.Error() != nil {
+			return token.Error()
 		}
-
-		if task.Topic == "" || task.Topic == TopicIndividual {
-			topic := fmt.Sprintf("%s/%s:%s", g.config.Prefix, g.config.ClientId, name)
-			if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
-				return token.Error()
-			}
-			log.Printf("Subscribe: %s = %s (%d)", name, topic, qos)
+		fn := "{default}"
+		if task.Fn != "" {
+			fn = task.Fn
 		}
+		log.Printf("Subscribe: %s (%d) => %s", topic, qos, fn)
 	}
 	return nil
 }
@@ -96,42 +87,6 @@ func (g *Gleam) Serve() error {
 	sh.Bind(syscall.SIGTERM, func() uint {
 		return signal.BreakExit
 	})
-	sh.Bind(syscall.SIGHUP, func() uint {
-		log.Printf("Reloading scripts")
-		for name, task := range g.config.Tasks {
-			qos := task.Qos
-
-			if task.Topic == "" || task.Topic == TopicBroadcast {
-				topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
-				if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-					log.Printf("Unsubscribe error: %s", token.Error())
-				}
-				log.Printf("Unsubscribe: %s", topic)
-
-				if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
-					log.Printf("Subscribe error: %s", token.Error())
-				} else {
-					log.Printf("Subscribe: %s = %s (%d)", name, topic, qos)
-				}
-			}
-
-			if task.Topic == "" || task.Topic == TopicIndividual {
-				topic := fmt.Sprintf("%s/%s:%s", g.config.Prefix, g.config.ClientId, name)
-				if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-					log.Printf("Unsubscribe error: %s", token.Error())
-				}
-				log.Printf("Unsubscribe: %s", topic)
-
-				if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTHandler(name)); token.Wait() && token.Error() != nil {
-					log.Printf("Subscribe error: %s", token.Error())
-				} else {
-					log.Printf("Subscribe: %s = %s (%d)", name, topic, qos)
-				}
-			}
-
-		}
-		return signal.Continue
-	})
 	sh.Wait()
 	return nil
 }
@@ -141,22 +96,11 @@ func (g *Gleam) Final() error {
 		return err
 	}
 
-	for name, task := range g.config.Tasks {
-		if task.Topic == "" || task.Topic == TopicBroadcast {
-			topic := fmt.Sprintf("%s/%s", g.config.Prefix, name)
-			if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-				log.Printf("Unsubscribe error: %s", token.Error())
-			}
-			log.Printf("Unsubscribe: %s", topic)
+	for topic, _ := range g.config.Tasks {
+		if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
+			log.Printf("Unsubscribe error: %s => [%s]", topic, token.Error())
 		}
-
-		if task.Topic == "" || task.Topic == TopicIndividual {
-			topic := fmt.Sprintf("%s/%s:%s", g.config.Prefix, g.config.ClientId, name)
-			if token := g.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-				log.Printf("Unsubscribe error: %s", token.Error())
-			}
-			log.Printf("Unsubscribe: %s", topic)
-		}
+		log.Printf("Unsubscribe: %s", topic)
 	}
 
 	if err := g.lua.onEvent("beforeFinalize", g.mqttClient); err != nil {

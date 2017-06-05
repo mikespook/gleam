@@ -11,17 +11,19 @@ const (
 )
 
 type Config struct {
-	MQTT      []ConfigMQTT
-	Prefix    string
 	ClientId  string
-	Tasks     map[string]ConfigTask
-	Schedule  ConfigSchedule
 	FinalTick time.Duration
+
+	MQTT []ConfigMQTT
+
+	Tasks    map[string]ConfigTask
+	Schedule ConfigSchedule
 }
 
 type ConfigTask struct {
-	Qos   byte
-	Topic string
+	Qos byte
+	Fn  string
+	//	Fn  lua.LFunction
 }
 
 type ConfigMQTT struct {

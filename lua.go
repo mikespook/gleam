@@ -7,48 +7,85 @@ import (
 	"os"
 	"sync"
 
+	// lua
 	"github.com/cjoudrey/gluahttp"
 	"github.com/cjoudrey/gluaurl"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/mikespook/schego"
 	"github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
 	"layeh.com/gopher-json"
 	"layeh.com/gopher-lfs"
 	"layeh.com/gopher-luar"
+
+	// mqtt
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+
+	"github.com/mikespook/schego"
 )
 
 type luaEnv struct {
 	sync.RWMutex
-	root  string
-	state *lua.LState
+	workdir string
+	l       *lua.LState
 }
 
-func newLuaEnv(root string) *luaEnv {
+func newLuaEnv(workdir string) *luaEnv {
 	return &luaEnv{
-		root: root,
+		workdir: workdir,
 	}
 }
 
-func (l *luaEnv) Init(config *Config) error {
-	l.Lock()
-	defer l.Unlock()
-	if err := os.Chdir(l.root); err != nil {
+func (e *luaEnv) Init(config *Config) error {
+	if err := os.Chdir(e.workdir); err != nil {
 		return err
 	}
+	e.Lock()
+	defer e.Unlock()
 	opt := lua.Options{
 		CallStackSize:       1024,
 		IncludeGoStackTrace: true,
 		RegistrySize:        1024 * 64,
 		SkipOpenLibs:        false,
 	}
-	l.state = lua.NewState(opt)
-	json.Preload(l.state)
-	lfs.Preload(l.state)
-	l.state.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{}).Loader)
-	l.state.PreloadModule("re", gluare.Loader)
-	l.state.PreloadModule("url", gluaurl.Loader)
-	l.state.SetGlobal("Log", l.state.NewFunction(func(L *lua.LState) int {
+	e.l = lua.NewState(opt)
+	// Preload module
+	json.Preload(e.l)
+	lfs.Preload(e.l)
+	e.l.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{}).Loader)
+	e.l.PreloadModule("re", gluare.Loader)
+	e.l.PreloadModule("url", gluaurl.Loader)
+	// Buildin var & func
+	e.setLog()
+	e.setLogf()
+	// e.setPwd()
+	e.l.SetGlobal("config", luar.New(e.l, config))
+	return e.l.DoFile("bootstrap.lua")
+}
+
+/*
+func (e *luaEnv) setPwd() {
+	// Pwd() -- return current work dir
+	// Pwd("/home/") -- set current work dir
+	e.l.SetGlobal("Pwd", e.l.NewFunction(func(L *lua.LState) int {
+		argc := L.GetTop()
+		if argc == 0 {
+			dir, err := os.Getwd()
+			if err != nil {
+				panic(err)
+			}
+			L.Push(lua.LString(dir))
+			return 1
+		} else {
+			if err := os.Chdir(L.Get(1).String()); err != nil {
+				panic(err)
+			}
+			return 0
+		}
+	}))
+}
+*/
+
+func (e *luaEnv) setLog() {
+	e.l.SetGlobal("Log", e.l.NewFunction(func(L *lua.LState) int {
 		argc := L.GetTop()
 		argv := make([]interface{}, argc)
 		for i := 1; i <= argc; i++ {
@@ -57,7 +94,10 @@ func (l *luaEnv) Init(config *Config) error {
 		log.Print(argv...)
 		return 0
 	}))
-	l.state.SetGlobal("Logf", l.state.NewFunction(func(L *lua.LState) int {
+}
+
+func (e *luaEnv) setLogf() {
+	e.l.SetGlobal("Logf", e.l.NewFunction(func(L *lua.LState) int {
 		argc := L.GetTop()
 		format := L.Get(1).String()
 		argv := make([]interface{}, argc-1)
@@ -67,141 +107,109 @@ func (l *luaEnv) Init(config *Config) error {
 		log.Printf(format, argv...)
 		return 0
 	}))
-	l.state.SetGlobal("config", luar.New(l.state, config))
-	return l.mustDoScript("init")
 }
 
-func (l *luaEnv) Final() error {
-	err := l.mustDoScript("final")
-	l.state.Close()
-	return err
-}
-
-func (l *luaEnv) mustDoScript(name string) error {
-	script := name + ".lua"
-	if _, err := os.Stat(script); err != nil {
-		return err
+func (e *luaEnv) Final() error {
+	e.RLock()
+	p := lua.P{
+		Fn:      e.l.GetGlobal("Final"),
+		Protect: true,
 	}
-	if err := l.state.DoFile(script); err != nil {
-		return err
+	e.RUnlock()
+	if p.Fn.Type() == lua.LTNil { // Final is not defined, do nothing
+		return nil
 	}
-	return nil
+	return e.l.CallByParam(p)
 }
 
-func (l *luaEnv) newMQTTHandler(name string) mqtt.MessageHandler {
-	script := name + ".lua"
-	if _, err := os.Stat(script); err != nil {
+func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
+	if name == "" {
+		return nil
+	}
+	e.RLock()
+	p := lua.P{
+		Fn:      e.l.GetGlobal(name),
+		Protect: true,
+	}
+	e.RUnlock()
+	if p.Fn.Type() == lua.LTNil { // Final is not defined, return nil to run the default one
 		return nil
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
-		l.Lock()
-		state, cancel := l.state.NewThread()
+		e.Lock()
+		L, cancel := e.l.NewThread()
 		defer func() {
 			if cancel != nil {
 				cancel()
 			}
-			state.Close()
+			L.Close()
 		}()
-		clientL := luar.New(l.state, client)
-		state.SetGlobal("Client", clientL)
-		msgL := messageToLua(l.state, msg)
-		state.SetGlobal("Message", msgL)
-		l.Unlock()
-		if err := state.DoFile(script); err != nil {
+		clientL := luar.New(e.l, client)
+		msgL := messageToLua(e.l, msg)
+		e.Unlock()
+		if err := L.CallByParam(p, clientL, msgL); err != nil {
+			// TODO using lua error func
 			log.Printf("Error[%s-%X]: %s", name, msg.MessageID(), err)
 		}
 	}
 }
 
-func (l *luaEnv) newExecFunc(name string, client mqtt.Client) schego.ExecFunc {
-	script := name + ".lua"
-	if _, err := os.Stat(script); err != nil {
-		return func(ctx context.Context) error {
-			l.RLock()
-			p := lua.P{
-				Fn:      l.state.GetGlobal("ScheduleDefaultFunc"),
-				NRet:    0,
-				Protect: true,
-			}
-			l.RUnlock()
-			if p.Fn.Type() == lua.LTNil {
-				return nil
-			}
-			ctxL := luar.New(l.state, ctx)
-			clientL := luar.New(l.state, client)
-			return l.state.CallByParam(p, ctxL, clientL)
-		}
-
+func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFunc {
+	e.RLock()
+	p := lua.P{
+		Fn:      e.l.GetGlobal(name),
+		Protect: true,
+	}
+	e.RUnlock()
+	if p.Fn.Type() == lua.LTNil { // Specific schego func is not defined, return nil to run the default one
+		return nil
 	}
 	return func(ctx context.Context) error {
-		l.Lock()
-		state, cancel := l.state.NewThread()
+		L, cancel := e.l.NewThread()
 		defer func() {
 			if cancel != nil {
 				cancel()
 			}
-			state.Close()
+			L.Close()
 		}()
-		clientL := luar.New(l.state, client)
-		state.SetGlobal("Client", clientL)
-		l.Unlock()
-		return state.DoFile(script)
+		clientL := luar.New(L, client)
+		return L.CallByParam(p, clientL)
 	}
 }
 
-func (l *luaEnv) errorFunc(ctx context.Context, err error) {
-	l.RLock()
+func (e *luaEnv) errorFunc(ctx context.Context, err error) {
+	e.RLock()
 	p := lua.P{
-		Fn:      l.state.GetGlobal("ErrorFunc"),
+		Fn:      e.l.GetGlobal("ErrorFunc"),
 		NRet:    0,
 		Protect: true,
 	}
-	l.RUnlock()
+	e.RUnlock()
 	if p.Fn.Type() == lua.LTNil {
 		return
 	}
 
-	ctxL := luar.New(l.state, ctx)
-	errL := luar.New(l.state, err)
+	ctxL := luar.New(e.l, ctx)
+	errL := luar.New(e.l, err)
 
-	if err := l.state.CallByParam(p, ctxL, errL); err != nil {
+	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
 		log.Printf("Scheduler Error: %s", err)
 	}
 }
 
-func (l *luaEnv) defaultMQTTHandler(client mqtt.Client, msg mqtt.Message) {
-	l.RLock()
+func (e *luaEnv) onEvent(name string, client mqtt.Client) error {
+	e.RLock()
 	p := lua.P{
-		Fn:      l.state.GetGlobal("MQTTDefaultHandler"),
+		Fn:      e.l.GetGlobal(name),
 		NRet:    0,
 		Protect: true,
 	}
-	l.RUnlock()
-	if p.Fn.Type() == lua.LTNil {
-		return
-	}
-
-	clientL := luar.New(l.state, client)
-	msgL := messageToLua(l.state, msg)
-
-	if err := l.state.CallByParam(p, clientL, msgL); err != nil {
-		log.Printf("Error[%s-%X]: %s", msg.Topic(), msg.MessageID(), err)
-	}
-}
-
-func (l *luaEnv) onEvent(name string, client mqtt.Client) error {
-	l.RLock()
-	p := lua.P{
-		Fn:      l.state.GetGlobal(name),
-		NRet:    0,
-		Protect: true,
-	}
-	l.RUnlock()
+	e.RUnlock()
 	if p.Fn.Type() == lua.LTNil {
 		return nil
 	}
-	clientL := luar.New(l.state, client)
-	return l.state.CallByParam(p, clientL)
+	clientL := luar.New(e.l, client)
+	return e.l.CallByParam(p, clientL)
 }
 
 func messageToLua(L *lua.LState, msg mqtt.Message) *lua.LTable {

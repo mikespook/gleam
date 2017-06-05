@@ -1,12 +1,30 @@
 package gleam
 
 import (
+	"os"
 	"testing"
-	//	"github.com/aarzilli/golua/lua"
-	//	"github.com/stevedonovan/luar"
 )
 
+var (
+	wd string
+)
+
+func init() {
+	var err error
+	if wd, err = os.Getwd(); err != nil {
+		panic(err)
+	}
+}
+
+func resetWD() {
+	if err := os.Chdir(wd); err != nil {
+		panic(err)
+	}
+}
+
 func TestGleam(t *testing.T) {
+	resetWD()
+
 	g := NewGleam("./scripts/")
 	if err := g.Init(); err != nil {
 		t.Fatal(err)

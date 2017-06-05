@@ -1,36 +1,43 @@
 Logf("Initialisation")
 
-foobar = require("foobar/foobar")
+-- include libraries
+tasks = require("tasks")
 utils = require("utils")
 json = require("json")
 
+-- global variables
+Prefix = "gleam"
+
+-- config
 config.MQTT = {
 	{
-		Addr = "tcp://iot.eclipse.org:1883",
+		Addr = "tcp://test.mosquitto.org:1883",
 		Username = "",
 		Password = ""
 	}
 }
-config.Prefix = "gleam"
 config.ClientId = "testing"
+-- topic: {fn, qos}
 config.Tasks = {}
-config.Tasks["test1"] = {
+config.Tasks[Prefix .. ":test1"] = {
+	Fn = "tasks.test1",
 	Qos = 0
 }
-config.Tasks["non-exist"] = {
-	Topic = "i"
-}
+config.Tasks[Prefix .. ":test2"] = {} -- no fn will lead to call defaultTask
+
 config.Schedule.Tick = 1000
+-- fn: tick
 config.Schedule.Tasks = {}
 config.Schedule.Tasks["heartbeat"] = 5000
 config.Schedule.Tasks["non-exist"] = 3000
 
-function MQTTDefaultHandler(Client, Message) 
-	Logf("Default: %s", Message.Payload)
+-- functions
+function defaultTask(client, msg) 
+	Logf("Default: %s", msg.Payload)
 end
 
-function ScheduleDefaultFunc(ctx, Client)
-	Log("Scheduler")
+function defaultSchedule(ctx, client)
+	Log("Default Scheduler")
 end
 
 function afterInit(Client)
@@ -41,7 +48,7 @@ function afterInit(Client)
 		Hostname = utils.getHostname(),
 		TS = os.time()
 	}
-	token = Client:Publish(config.Prefix .. ":hub", 0, true, json.encode(data))
+	token = Client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
 	if token:Wait() and token:Error() ~= nil then
 		Logf("onAfterInit: %s", token:Error())
 	end
@@ -54,7 +61,7 @@ function beforeFinalize(Client)
 		ID = config.ClientId,
 		TS = os.time()		
 	}
-	token = Client:Publish(config.Prefix .. ":hub", 0, true, json.encode(data))
+	token = Client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
 	if token:Wait() and token:Error() ~= nil then
 		Logf("onAfterInit: %s", token:Error())
 	end
