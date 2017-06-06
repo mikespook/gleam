@@ -28,6 +28,7 @@ func (g *Gleam) Init() error {
 	if err := g.lua.Init(&g.config); err != nil {
 		return err
 	}
+
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
@@ -42,6 +43,7 @@ func (g *Gleam) initSchedule(config *Config) error {
 	g.scheduler.ErrorFunc = g.lua.errorFunc
 	for name, interval := range config.Schedule.Tasks {
 		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, g.lua.newScheduleFunc(name, g.mqttClient))
+		log.Printf("Schedule: %s (%d)", name, interval)
 	}
 	return nil
 }
@@ -110,5 +112,6 @@ func (g *Gleam) Final() error {
 		time.Sleep(g.config.FinalTick * time.Millisecond)
 	}
 	g.mqttClient.Disconnect(500)
-	return g.lua.Final()
+	g.lua.Final()
+	return nil
 }

@@ -14,7 +14,5 @@ func TestLuaEnv(t *testing.T) {
 	if err := e.Init(&config); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Final(); err != nil {
-		t.Fatal(err)
-	}
+	e.Final()
 }

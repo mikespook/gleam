@@ -28,7 +28,7 @@ config.Tasks[Prefix .. ":test2"] = {} -- no fn will lead to call defaultTask
 config.Schedule.Tick = 1000
 -- fn: tick
 config.Schedule.Tasks = {}
-config.Schedule.Tasks["heartbeat"] = 5000
+config.Schedule.Tasks["tasks.heartbeat"] = 5000
 config.Schedule.Tasks["non-exist"] = 3000
 
 -- functions
@@ -36,11 +36,8 @@ function defaultTask(client, msg)
 	Logf("Default: %s", msg.Payload)
 end
 
-function defaultSchedule(ctx, client)
-	Log("Default Scheduler")
-end
-
 function afterInit(Client)
+	Log("After Initialisation")
 	-- register the client to hub
 	data = {
 		M = "init",
@@ -59,10 +56,11 @@ function beforeFinalize(Client)
 	data = {
 		M = "finalize",
 		ID = config.ClientId,
-		TS = os.time()		
+		TS = os.time()
 	}
 	token = Client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
 	if token:Wait() and token:Error() ~= nil then
 		Logf("onAfterInit: %s", token:Error())
 	end
+	Log("Before Finalisation")
 end

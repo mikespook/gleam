@@ -8,4 +8,8 @@ function _M.test1(Client, Message)
 	end
 end
 
+function _M.heartbeat(Client)
+	Logf("Heartbeat: %s", os.date())
+end
+
 return _M

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	// lua
@@ -56,33 +57,9 @@ func (e *luaEnv) Init(config *Config) error {
 	// Buildin var & func
 	e.setLog()
 	e.setLogf()
-	// e.setPwd()
 	e.l.SetGlobal("config", luar.New(e.l, config))
 	return e.l.DoFile("bootstrap.lua")
 }
-
-/*
-func (e *luaEnv) setPwd() {
-	// Pwd() -- return current work dir
-	// Pwd("/home/") -- set current work dir
-	e.l.SetGlobal("Pwd", e.l.NewFunction(func(L *lua.LState) int {
-		argc := L.GetTop()
-		if argc == 0 {
-			dir, err := os.Getwd()
-			if err != nil {
-				panic(err)
-			}
-			L.Push(lua.LString(dir))
-			return 1
-		} else {
-			if err := os.Chdir(L.Get(1).String()); err != nil {
-				panic(err)
-			}
-			return 0
-		}
-	}))
-}
-*/
 
 func (e *luaEnv) setLog() {
 	e.l.SetGlobal("Log", e.l.NewFunction(func(L *lua.LState) int {
@@ -109,17 +86,28 @@ func (e *luaEnv) setLogf() {
 	}))
 }
 
-func (e *luaEnv) Final() error {
-	e.RLock()
-	p := lua.P{
-		Fn:      e.l.GetGlobal("Final"),
-		Protect: true,
+func (e *luaEnv) Final() {
+	e.l.Close()
+}
+
+func (e *luaEnv) getFn(obj lua.LValue, nest []string) lua.LValue {
+	if len(nest) == 0 {
+		return lua.LNil
 	}
-	e.RUnlock()
-	if p.Fn.Type() == lua.LTNil { // Final is not defined, do nothing
-		return nil
+	if obj.Type() == lua.LTTable {
+		obj = obj.(*lua.LTable).RawGetString(nest[0])
+		e.getFn(obj, nest[1:])
 	}
-	return e.l.CallByParam(p)
+	if obj.Type() == lua.LTFunction {
+		return obj
+	}
+	return lua.LNil
+}
+
+func (e *luaEnv) GetFn(name string) lua.LValue {
+	nest := strings.Split(name, ".")
+	obj := e.l.GetGlobal(nest[0])
+	return e.getFn(obj, nest[1:])
 }
 
 func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
@@ -128,7 +116,7 @@ func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
 	}
 	e.RLock()
 	p := lua.P{
-		Fn:      e.l.GetGlobal(name),
+		Fn:      e.GetFn(name),
 		Protect: true,
 	}
 	e.RUnlock()
@@ -157,11 +145,11 @@ func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
 func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFunc {
 	e.RLock()
 	p := lua.P{
-		Fn:      e.l.GetGlobal(name),
+		Fn:      e.GetFn(name),
 		Protect: true,
 	}
 	e.RUnlock()
-	if p.Fn.Type() == lua.LTNil { // Specific schego func is not defined, return nil to run the default one
+	if p.Fn.Type() == lua.LTNil { // Specific schego func is not defined, return nil to skip it
 		return nil
 	}
 	return func(ctx context.Context) error {
@@ -180,7 +168,7 @@ func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFun
 func (e *luaEnv) errorFunc(ctx context.Context, err error) {
 	e.RLock()
 	p := lua.P{
-		Fn:      e.l.GetGlobal("ErrorFunc"),
+		Fn:      e.l.GetGlobal("onError"),
 		NRet:    0,
 		Protect: true,
 	}
@@ -189,10 +177,9 @@ func (e *luaEnv) errorFunc(ctx context.Context, err error) {
 		return
 	}
 
-	ctxL := luar.New(e.l, ctx)
 	errL := luar.New(e.l, err)
 
-	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
+	if err := e.l.CallByParam(p, errL); err != nil {
 		log.Printf("Scheduler Error: %s", err)
 	}
 }
