@@ -32,6 +32,7 @@ func (g *Gleam) Init() error {
 	if err := g.initMQTT(); err != nil {
 		return err
 	}
+
 	if err := g.initSchedule(&g.config); err != nil {
 		return err
 	}
@@ -40,10 +41,15 @@ func (g *Gleam) Init() error {
 
 func (g *Gleam) initSchedule(config *Config) error {
 	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
-	g.scheduler.ErrorFunc = g.lua.errorFunc
+	g.scheduler.ErrorFunc = g.lua.onError
 	for name, interval := range config.Schedule.Tasks {
-		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, g.lua.newScheduleFunc(name, g.mqttClient))
-		log.Printf("Schedule: %s (%d)", name, interval)
+		f := g.lua.newScheduleFunc(name, g.mqttClient)
+		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, f)
+		fn := "Skip"
+		if f != nil {
+			fn = "Serve"
+		}
+		log.Printf("Schedule: %s (%d) => %s", name, interval, fn)
 	}
 	return nil
 }
@@ -67,11 +73,12 @@ func (g *Gleam) initMQTT() error {
 	}
 	for topic, task := range g.config.Tasks {
 		qos := task.Qos
-		if token := g.mqttClient.Subscribe(topic, qos, g.lua.newMQTTFunc(task.Fn)); token.Wait() && token.Error() != nil {
+		f := g.lua.newMQTTFunc(task.Fn)
+		if token := g.mqttClient.Subscribe(topic, qos, f); token.Wait() && token.Error() != nil {
 			return token.Error()
 		}
 		fn := "{default}"
-		if task.Fn != "" {
+		if f != nil {
 			fn = task.Fn
 		}
 		log.Printf("Subscribe: %s (%d) => %s", topic, qos, fn)

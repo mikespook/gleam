@@ -160,12 +160,13 @@ func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFun
 			}
 			L.Close()
 		}()
+		eventL := luar.New(e.l, ctx.Value("event"))
 		clientL := luar.New(L, client)
-		return L.CallByParam(p, clientL)
+		return L.CallByParam(p, eventL, clientL)
 	}
 }
 
-func (e *luaEnv) errorFunc(ctx context.Context, err error) {
+func (e *luaEnv) onError(ctx context.Context, err error) {
 	e.RLock()
 	p := lua.P{
 		Fn:      e.l.GetGlobal("onError"),
@@ -177,9 +178,10 @@ func (e *luaEnv) errorFunc(ctx context.Context, err error) {
 		return
 	}
 
-	errL := luar.New(e.l, err)
+	eventL := luar.New(e.l, ctx.Value("event"))
+	errL := luar.New(e.l, err.Error())
 
-	if err := e.l.CallByParam(p, errL); err != nil {
+	if err := e.l.CallByParam(p, eventL, errL); err != nil {
 		log.Printf("Scheduler Error: %s", err)
 	}
 }

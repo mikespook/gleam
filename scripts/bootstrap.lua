@@ -64,3 +64,7 @@ function beforeFinalize(Client)
 	end
 	Log("Before Finalisation")
 end
+
+function onError(event, err)
+	Log("%v: %s", event, err)
+end

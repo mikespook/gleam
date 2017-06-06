@@ -10,6 +10,7 @@ end
 
 function _M.heartbeat(Client)
 	Logf("Heartbeat: %s", os.date())
+	Logf(config.Prefix .. "abc")
 end
 
 return _M
