@@ -36,14 +36,14 @@ func (g *Gleam) Init() error {
 	if err := g.initSchedule(&g.config); err != nil {
 		return err
 	}
-	return g.lua.onEvent("afterInit", g.mqttClient)
+	return g.lua.onEvent(AfterInitFunc, g.mqttClient)
 }
 
 func (g *Gleam) initSchedule(config *Config) error {
 	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
 	g.scheduler.ErrorFunc = g.lua.onError
 	for name, interval := range config.Schedule.Tasks {
-		f := g.lua.newScheduleFunc(name, g.mqttClient)
+		f := g.lua.newOnSchedule(name, g.mqttClient)
 		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, f)
 		fn := "Skip"
 		if f != nil {
@@ -65,23 +65,23 @@ func (g *Gleam) initMQTT() error {
 	}
 	opts.SetClientID(g.config.ClientId)
 	log.Printf("ClientId: %s", g.config.ClientId)
-	opts.SetDefaultPublishHandler(g.lua.newMQTTFunc("defaultTask"))
+	opts.SetDefaultPublishHandler(g.lua.newOnMessage(MessageFunc))
 	opts.SetAutoReconnect(true)
 	g.mqttClient = mqtt.NewClient(opts)
 	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
-	for topic, task := range g.config.Tasks {
-		qos := task.Qos
-		f := g.lua.newMQTTFunc(task.Fn)
-		if token := g.mqttClient.Subscribe(topic, qos, f); token.Wait() && token.Error() != nil {
-			return token.Error()
+	for name, task := range g.config.Tasks {
+		for topic, qos := range task {
+			f := g.lua.newOnMessage(name)
+			if token := g.mqttClient.Subscribe(topic, qos, f); token.Wait() && token.Error() != nil {
+				return token.Error()
+			}
+			if f == nil {
+				name = "{default}"
+			}
+			log.Printf("Subscribe: %s (%d) => %s", topic, qos, name)
 		}
-		fn := "{default}"
-		if f != nil {
-			fn = task.Fn
-		}
-		log.Printf("Subscribe: %s (%d) => %s", topic, qos, fn)
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func (g *Gleam) Final() error {
 		log.Printf("Unsubscribe: %s", topic)
 	}
 
-	if err := g.lua.onEvent("beforeFinalize", g.mqttClient); err != nil {
+	if err := g.lua.onEvent(BeforeFinalizeFunc, g.mqttClient); err != nil {
 		log.Printf("BeforeFinalize: %s", err)
 	}
 	if g.config.FinalTick != 0 {

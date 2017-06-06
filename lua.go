@@ -23,6 +23,25 @@ import (
 	"github.com/mikespook/schego"
 )
 
+const (
+	MessageFunc        = "onMessage"
+	ErrorFunc          = "onError"
+	AfterInitFunc      = "afterInit"
+	BeforeFinalizeFunc = "beforeFinalize"
+
+	LogFunc  = "log"
+	LogfFunc = "logf"
+
+	ConfigVar = "config"
+
+	LuaCallStackSize       = 1024
+	LuaIncludeGoStackTrace = true
+	LuaRegistrySize        = 1024 * 64
+	LuaSkipOpenLibs        = false
+
+	BootstrapFile = "bootstrap.lua"
+)
+
 type luaEnv struct {
 	sync.RWMutex
 	workdir string
@@ -42,10 +61,10 @@ func (e *luaEnv) Init(config *Config) error {
 	e.Lock()
 	defer e.Unlock()
 	opt := lua.Options{
-		CallStackSize:       1024,
-		IncludeGoStackTrace: true,
-		RegistrySize:        1024 * 64,
-		SkipOpenLibs:        false,
+		CallStackSize:       LuaCallStackSize,
+		IncludeGoStackTrace: LuaIncludeGoStackTrace,
+		RegistrySize:        LuaRegistrySize,
+		SkipOpenLibs:        LuaSkipOpenLibs,
 	}
 	e.l = lua.NewState(opt)
 	// Preload module
@@ -57,12 +76,12 @@ func (e *luaEnv) Init(config *Config) error {
 	// Buildin var & func
 	e.setLog()
 	e.setLogf()
-	e.l.SetGlobal("config", luar.New(e.l, config))
-	return e.l.DoFile("bootstrap.lua")
+	e.l.SetGlobal(ConfigVar, luar.New(e.l, config))
+	return e.l.DoFile(BootstrapFile)
 }
 
 func (e *luaEnv) setLog() {
-	e.l.SetGlobal("Log", e.l.NewFunction(func(L *lua.LState) int {
+	e.l.SetGlobal(LogFunc, e.l.NewFunction(func(L *lua.LState) int {
 		argc := L.GetTop()
 		argv := make([]interface{}, argc)
 		for i := 1; i <= argc; i++ {
@@ -74,7 +93,7 @@ func (e *luaEnv) setLog() {
 }
 
 func (e *luaEnv) setLogf() {
-	e.l.SetGlobal("Logf", e.l.NewFunction(func(L *lua.LState) int {
+	e.l.SetGlobal(LogfFunc, e.l.NewFunction(func(L *lua.LState) int {
 		argc := L.GetTop()
 		format := L.Get(1).String()
 		argv := make([]interface{}, argc-1)
@@ -90,13 +109,13 @@ func (e *luaEnv) Final() {
 	e.l.Close()
 }
 
-func (e *luaEnv) getFn(obj lua.LValue, nest []string) lua.LValue {
+func (e *luaEnv) getFuncByName(obj lua.LValue, nest []string) lua.LValue {
 	if len(nest) == 0 {
 		return lua.LNil
 	}
 	if obj.Type() == lua.LTTable {
 		obj = obj.(*lua.LTable).RawGetString(nest[0])
-		e.getFn(obj, nest[1:])
+		e.getFuncByName(obj, nest[1:])
 	}
 	if obj.Type() == lua.LTFunction {
 		return obj
@@ -104,19 +123,19 @@ func (e *luaEnv) getFn(obj lua.LValue, nest []string) lua.LValue {
 	return lua.LNil
 }
 
-func (e *luaEnv) GetFn(name string) lua.LValue {
+func (e *luaEnv) GetFuncByName(name string) lua.LValue {
 	nest := strings.Split(name, ".")
 	obj := e.l.GetGlobal(nest[0])
-	return e.getFn(obj, nest[1:])
+	return e.getFuncByName(obj, nest[1:])
 }
 
-func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
+func (e *luaEnv) newOnMessage(name string) mqtt.MessageHandler {
 	if name == "" {
 		return nil
 	}
 	e.RLock()
 	p := lua.P{
-		Fn:      e.GetFn(name),
+		Fn:      e.GetFuncByName(name),
 		Protect: true,
 	}
 	e.RUnlock()
@@ -136,16 +155,18 @@ func (e *luaEnv) newMQTTFunc(name string) mqtt.MessageHandler {
 		msgL := messageToLua(e.l, msg)
 		e.Unlock()
 		if err := L.CallByParam(p, clientL, msgL); err != nil {
-			// TODO using lua error func
-			log.Printf("Error[%s-%X]: %s", name, msg.MessageID(), err)
+			ctx := context.Background()
+			ctx = context.WithValue(ctx, "name", name)
+			ctx = context.WithValue(ctx, "message", msg)
+			e.onError(ctx, err)
 		}
 	}
 }
 
-func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFunc {
+func (e *luaEnv) newOnSchedule(name string, client mqtt.Client) schego.ExecFunc {
 	e.RLock()
 	p := lua.P{
-		Fn:      e.GetFn(name),
+		Fn:      e.GetFuncByName(name),
 		Protect: true,
 	}
 	e.RUnlock()
@@ -160,16 +181,16 @@ func (e *luaEnv) newScheduleFunc(name string, client mqtt.Client) schego.ExecFun
 			}
 			L.Close()
 		}()
-		eventL := luar.New(e.l, ctx.Value("event"))
+		ctxL := contextToLua(e.l, ctx)
 		clientL := luar.New(L, client)
-		return L.CallByParam(p, eventL, clientL)
+		return L.CallByParam(p, ctxL, clientL)
 	}
 }
 
 func (e *luaEnv) onError(ctx context.Context, err error) {
 	e.RLock()
 	p := lua.P{
-		Fn:      e.l.GetGlobal("onError"),
+		Fn:      e.l.GetGlobal(ErrorFunc),
 		NRet:    0,
 		Protect: true,
 	}
@@ -178,11 +199,11 @@ func (e *luaEnv) onError(ctx context.Context, err error) {
 		return
 	}
 
-	eventL := luar.New(e.l, ctx.Value("event"))
+	ctxL := contextToLua(e.l, ctx)
 	errL := luar.New(e.l, err.Error())
 
-	if err := e.l.CallByParam(p, eventL, errL); err != nil {
-		log.Printf("Scheduler Error: %s", err)
+	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
+		log.Printf("Error: %s", err)
 	}
 }
 
@@ -199,6 +220,26 @@ func (e *luaEnv) onEvent(name string, client mqtt.Client) error {
 	}
 	clientL := luar.New(e.l, client)
 	return e.l.CallByParam(p, clientL)
+}
+
+func contextToLua(L *lua.LState, ctx context.Context) lua.LValue {
+	name := ctx.Value("name")
+	if name != nil {
+		strname, ok := name.(string)
+		if !ok {
+			return lua.LNil
+		}
+		msgL := luar.New(L, ctx.Value("message"))
+		ctxL := L.CreateTable(0, 2)
+		ctxL.RawSetString("Id", lua.LString(strname))
+		ctxL.RawSetString("Message", msgL)
+		return ctxL
+	}
+	event := ctx.Value("event")
+	if event != nil {
+		return luar.New(L, event)
+	}
+	return lua.LNil
 }
 
 func messageToLua(L *lua.LState, msg mqtt.Message) *lua.LTable {

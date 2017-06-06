@@ -20,11 +20,7 @@ type Config struct {
 	Schedule ConfigSchedule
 }
 
-type ConfigTask struct {
-	Qos byte
-	Fn  string
-	//	Fn  lua.LFunction
-}
+type ConfigTask map[string]byte
 
 type ConfigMQTT struct {
 	Addr     string
