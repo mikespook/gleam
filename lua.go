@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	MessageFunc        = "onMessage"
+	MessageFunc        = "onDefaultMessage"
 	ErrorFunc          = "onError"
 	AfterInitFunc      = "afterInit"
 	BeforeFinalizeFunc = "beforeFinalize"
@@ -110,15 +110,15 @@ func (e *luaEnv) Final() {
 }
 
 func (e *luaEnv) getFuncByName(obj lua.LValue, nest []string) lua.LValue {
-	if len(nest) == 0 {
-		return lua.LNil
-	}
-	if obj.Type() == lua.LTTable {
-		obj = obj.(*lua.LTable).RawGetString(nest[0])
-		e.getFuncByName(obj, nest[1:])
-	}
 	if obj.Type() == lua.LTFunction {
 		return obj
+	}
+	if obj.Type() == lua.LTTable {
+		if len(nest) == 0 {
+			return lua.LNil
+		}
+		obj = obj.(*lua.LTable).RawGetString(nest[0])
+		e.getFuncByName(obj, nest[1:])
 	}
 	return lua.LNil
 }

@@ -35,14 +35,14 @@ config.Schedule.Tasks = {}
 config.Schedule.Tasks["tasks.heartbeat"] = 5000
 config.Schedule.Tasks["non-exist"] = 3000
 -- set fire
-config.Schedule.Tasks["tasks.fireOnSchedule"] = 10000
+config.Schedule.Tasks["tasks.fireOnSchedule"] = 1000 * 60
 
 -- functions
 function onDefaultMessage(client, msg) 
 	logf("Default: %s", msg.Payload)
 end
 
-function afterInit(Client)
+function afterInit(client)
 	log("After Initialisation")
 	-- register the client to hub
 	data = {
@@ -51,20 +51,20 @@ function afterInit(Client)
 		Hostname = utils.getHostname(),
 		TS = os.time()
 	}
-	token = Client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
+	token = client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
 	if token:Wait() and token:Error() ~= nil then
 		logf("onAfterInit: %s", token:Error())
 	end
 end
 
-function beforeFinalize(Client)
+function beforeFinalize(client)
 	-- register the client to hub
 	data = {
 		M = "finalize",
 		ID = config.ClientId,
 		TS = os.time()
 	}
-	token = Client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
+	token = client:Publish(Prefix .. ":hub", 0, true, json.encode(data))
 	if token:Wait() and token:Error() ~= nil then
 		logf("onAfterInit: %s", token:Error())
 	end
