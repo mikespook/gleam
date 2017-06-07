@@ -118,7 +118,7 @@ func (e *luaEnv) getFuncByName(obj lua.LValue, nest []string) lua.LValue {
 			return lua.LNil
 		}
 		obj = obj.(*lua.LTable).RawGetString(nest[0])
-		e.getFuncByName(obj, nest[1:])
+		return e.getFuncByName(obj, nest[1:])
 	}
 	return lua.LNil
 }
