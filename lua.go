@@ -151,8 +151,8 @@ func (e *luaEnv) newOnMessage(name string) mqtt.MessageHandler {
 			}
 			L.Close()
 		}()
-		clientL := luar.New(e.l, client)
-		msgL := messageToLua(e.l, msg)
+		clientL := luar.New(L, client)
+		msgL := messageToLua(L, msg)
 		e.Unlock()
 		if err := L.CallByParam(p, clientL, msgL); err != nil {
 			ctx := context.Background()
@@ -181,7 +181,7 @@ func (e *luaEnv) newOnSchedule(name string, client mqtt.Client) schego.ExecFunc 
 			}
 			L.Close()
 		}()
-		ctxL := contextToLua(e.l, ctx)
+		ctxL := contextToLua(L, ctx)
 		clientL := luar.New(L, client)
 		return L.CallByParam(p, ctxL, clientL)
 	}
