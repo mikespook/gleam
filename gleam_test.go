@@ -2,6 +2,7 @@ package gleam
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -30,7 +31,11 @@ func TestGleam(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if g.config.ClientId != "testing" {
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(g.config.ClientId, hostname) {
 		t.Fatalf("Config error: %+v", g.config)
 	}
 
