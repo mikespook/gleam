@@ -1,6 +1,7 @@
 package gleam
 
 import (
+	"crypto/tls"
 	"log"
 	"os"
 	"syscall"
@@ -67,6 +68,9 @@ func (g *Gleam) initMQTT() error {
 	log.Printf("ClientId: %s", g.config.ClientId)
 	opts.SetDefaultPublishHandler(g.lua.newOnMessage(MessageFunc))
 	opts.SetAutoReconnect(true)
+	if g.config.NotVerifyTLS {
+		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
+	}
 	g.mqttClient = mqtt.NewClient(opts)
 	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()

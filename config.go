@@ -14,7 +14,8 @@ type Config struct {
 	ClientId  string
 	FinalTick time.Duration
 
-	MQTT []ConfigMQTT
+	MQTT         []ConfigMQTT
+	NotVerifyTLS bool
 
 	Tasks    map[string]ConfigTask
 	Schedule ConfigSchedule
