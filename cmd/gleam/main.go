@@ -29,9 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := g.Serve(); err != nil {
-		log.Fatal(err)
-	}
+	g.Serve()
 
 	if err := g.Final(); err != nil {
 		log.Fatal(err)

@@ -30,17 +30,13 @@ func (g *Gleam) Init() error {
 		return err
 	}
 
-	if err := g.initMQTT(); err != nil {
-		return err
-	}
+	g.initSchedule(&g.config)
+	g.initMQTT()
 
-	if err := g.initSchedule(&g.config); err != nil {
-		return err
-	}
 	return g.lua.onEvent(AfterInitFunc, g.mqttClient)
 }
 
-func (g *Gleam) initSchedule(config *Config) error {
+func (g *Gleam) initSchedule(config *Config) {
 	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
 	g.scheduler.ErrorFunc = g.lua.onError
 	for name, interval := range config.Schedule.Tasks {
@@ -52,10 +48,9 @@ func (g *Gleam) initSchedule(config *Config) error {
 		}
 		log.Printf("Schedule: %s (%d) => %s", name, interval, fn)
 	}
-	return nil
 }
 
-func (g *Gleam) initMQTT() error {
+func (g *Gleam) initMQTT() {
 	opts := mqtt.NewClientOptions()
 	for _, broker := range g.config.MQTT {
 		opts.AddBroker(broker.Addr)
@@ -71,26 +66,38 @@ func (g *Gleam) initMQTT() error {
 	if g.config.NotVerifyTLS {
 		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
 	}
+	opts.SetOnConnectHandler(g.newOnConnect())
+	opts.SetConnectionLostHandler(g.newOnLostConnect())
 	g.mqttClient = mqtt.NewClient(opts)
 	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		return token.Error()
+		log.Printf("Conn Error: %s", token.Error())
 	}
-	for name, task := range g.config.Tasks {
-		for topic, qos := range task {
-			f := g.lua.newOnMessage(name)
-			if token := g.mqttClient.Subscribe(topic, qos, f); token.Wait() && token.Error() != nil {
-				return token.Error()
-			}
-			if f == nil {
-				name = "{default}"
-			}
-			log.Printf("Subscribe: %s (%d) => %s", topic, qos, name)
-		}
-	}
-	return nil
 }
 
-func (g *Gleam) Serve() error {
+func (g *Gleam) newOnConnect() mqtt.OnConnectHandler {
+	return func(client mqtt.Client) {
+		for name, task := range g.config.Tasks {
+			for topic, qos := range task {
+				f := g.lua.newOnMessage(name)
+				if f == nil {
+					name = "{default}"
+				}
+				log.Printf("Subscribe: %s (%d) => %s", topic, qos, name)
+				if token := client.Subscribe(topic, qos, f); token.Wait() && token.Error() != nil {
+					log.Printf("Subscribe Error: %s %s", topic, token.Error())
+				}
+			}
+		}
+	}
+}
+
+func (g *Gleam) newOnLostConnect() mqtt.ConnectionLostHandler {
+	return func(client mqtt.Client, err error) {
+		log.Printf("Conn Error: %s", err)
+	}
+}
+
+func (g *Gleam) Serve() {
 	go g.scheduler.Serve()
 
 	sh := signal.New(nil)
@@ -101,7 +108,6 @@ func (g *Gleam) Serve() error {
 		return signal.BreakExit
 	})
 	sh.Wait()
-	return nil
 }
 
 func (g *Gleam) Final() error {
