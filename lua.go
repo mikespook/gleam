@@ -163,7 +163,7 @@ func (e *luaEnv) newOnMessage(name string) mqtt.MessageHandler {
 	}
 }
 
-func (e *luaEnv) newOnSchedule(name string, client mqtt.Client) schego.ExecFunc {
+func (e *luaEnv) newOnSchedule(name string, client *mqtt.Client) schego.ExecFunc {
 	e.RLock()
 	p := lua.P{
 		Fn:      e.GetFuncByName(name),
@@ -182,8 +182,8 @@ func (e *luaEnv) newOnSchedule(name string, client mqtt.Client) schego.ExecFunc 
 			L.Close()
 		}()
 		ctxL := contextToLua(L, ctx)
-		clientL := luar.New(L, client)
-		return L.CallByParam(p, ctxL, clientL)
+		clientL := luar.New(L, *client)
+		return L.CallByParam(p, clientL, ctxL)
 	}
 }
 
@@ -202,7 +202,7 @@ func (e *luaEnv) onError(ctx context.Context, err error) {
 	ctxL := contextToLua(e.l, ctx)
 	errL := luar.New(e.l, err.Error())
 
-	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
+	if err := e.l.CallByParam(p, errL, ctxL); err != nil {
 		log.Printf("Error: %s", err)
 	}
 }

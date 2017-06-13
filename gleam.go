@@ -30,8 +30,8 @@ func (g *Gleam) Init() error {
 		return err
 	}
 
-	g.initSchedule(&g.config)
 	g.initMQTT()
+	g.initSchedule(&g.config)
 
 	return g.lua.onEvent(AfterInitFunc, g.mqttClient)
 }
@@ -40,7 +40,7 @@ func (g *Gleam) initSchedule(config *Config) {
 	g.scheduler = schego.New(config.Schedule.Tick * time.Millisecond)
 	g.scheduler.ErrorFunc = g.lua.onError
 	for name, interval := range config.Schedule.Tasks {
-		f := g.lua.newOnSchedule(name, g.mqttClient)
+		f := g.lua.newOnSchedule(name, &g.mqttClient)
 		g.scheduler.Add(name, time.Now(), interval*time.Millisecond, schego.ForEver, f)
 		fn := "Skip"
 		if f != nil {
@@ -69,7 +69,11 @@ func (g *Gleam) initMQTT() {
 	opts.SetOnConnectHandler(g.newOnConnect())
 	opts.SetConnectionLostHandler(g.newOnLostConnect())
 	g.mqttClient = mqtt.NewClient(opts)
-	if token := g.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+	for {
+		token := g.mqttClient.Connect()
+		if !token.Wait() || token.Error() == nil {
+			break
+		}
 		log.Printf("Conn Error: %s", token.Error())
 	}
 }
