@@ -75,6 +75,7 @@ func (g *Gleam) initMQTT() {
 			break
 		}
 		log.Printf("Conn Error: %s", token.Error())
+		time.Sleep(5 * time.Second)
 	}
 }
 
