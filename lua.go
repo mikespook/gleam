@@ -202,7 +202,7 @@ func (e *luaEnv) onError(ctx context.Context, err error) {
 	ctxL := contextToLua(e.l, ctx)
 	errL := luar.New(e.l, err.Error())
 
-	if err := e.l.CallByParam(p, errL, ctxL); err != nil {
+	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
 		log.Printf("Error: %s", err)
 	}
 }
