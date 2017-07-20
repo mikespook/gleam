@@ -71,6 +71,6 @@ function beforeFinalize(client)
 	log("Before Finalisation")
 end
 
-function onError(err, ctx)
+function onError(ctx, err)
 	logf("%s: %s", ctx.Id, err)
 end
