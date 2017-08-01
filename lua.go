@@ -174,6 +174,7 @@ func (e *luaEnv) newOnSchedule(name string, client *mqtt.Client) schego.ExecFunc
 		return nil
 	}
 	return func(ctx context.Context) error {
+		e.Lock()
 		L, cancel := e.l.NewThread()
 		defer func() {
 			if cancel != nil {
@@ -183,6 +184,7 @@ func (e *luaEnv) newOnSchedule(name string, client *mqtt.Client) schego.ExecFunc
 		}()
 		ctxL := contextToLua(L, ctx)
 		clientL := luar.New(L, *client)
+		e.Unlock()
 		return L.CallByParam(p, clientL, ctxL)
 	}
 }
