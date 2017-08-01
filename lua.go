@@ -2,6 +2,7 @@ package gleam
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
 	"net/http"
 	"os"
@@ -70,14 +71,19 @@ func (e *luaEnv) Init(config *Config) error {
 	// Preload module
 	json.Preload(e.l)
 	lfs.Preload(e.l)
-	e.l.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{}).Loader)
 	e.l.PreloadModule("re", gluare.Loader)
 	e.l.PreloadModule("url", gluaurl.Loader)
+	client := &http.Client{}
+	e.l.PreloadModule("http", gluahttp.NewHttpModule(client).Loader)
 	// Buildin var & func
 	e.setLog()
 	e.setLogf()
 	e.l.SetGlobal(ConfigVar, luar.New(e.l, config))
-	return e.l.DoFile(BootstrapFile)
+	r := e.l.DoFile(BootstrapFile)
+	if config.NotVerifyTLS { // TODO apply config to PreloadModules
+		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	}
+	return r
 }
 
 func (e *luaEnv) setLog() {
@@ -144,6 +150,7 @@ func (e *luaEnv) newOnMessage(name string) mqtt.MessageHandler {
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
 		e.Lock()
+		defer e.Unlock()
 		L, cancel := e.l.NewThread()
 		defer func() {
 			if cancel != nil {
@@ -153,7 +160,6 @@ func (e *luaEnv) newOnMessage(name string) mqtt.MessageHandler {
 		}()
 		clientL := luar.New(L, client)
 		msgL := messageToLua(L, msg)
-		e.Unlock()
 		if err := L.CallByParam(p, clientL, msgL); err != nil {
 			ctx := context.Background()
 			ctx = context.WithValue(ctx, "name", name)
@@ -175,6 +181,7 @@ func (e *luaEnv) newOnSchedule(name string, client *mqtt.Client) schego.ExecFunc
 	}
 	return func(ctx context.Context) error {
 		e.Lock()
+		defer e.Unlock()
 		L, cancel := e.l.NewThread()
 		defer func() {
 			if cancel != nil {
@@ -184,7 +191,6 @@ func (e *luaEnv) newOnSchedule(name string, client *mqtt.Client) schego.ExecFunc
 		}()
 		ctxL := contextToLua(L, ctx)
 		clientL := luar.New(L, *client)
-		e.Unlock()
 		return L.CallByParam(p, clientL, ctxL)
 	}
 }

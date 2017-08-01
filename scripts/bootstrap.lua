@@ -17,6 +17,7 @@ config.MQTT = {
 	}
 }
 config.ClientId = utils.getClientId()
+config.NotVerifyTLS = true
 -- fn:topic:qos
 config.Tasks = {}
 config.Tasks["tasks.test1"] = {}
