@@ -29,7 +29,9 @@ func (g *Gleam) Init() error {
 	if err := g.lua.Init(&g.config); err != nil {
 		return err
 	}
-
+	if err := g.lua.onSeat(InitFunc); err != nil {
+		return err
+	}
 	g.initMQTT()
 	g.initSchedule()
 
@@ -148,6 +150,9 @@ func (g *Gleam) Final() error {
 	}
 	if g.mqttClient != nil {
 		g.mqttClient.Disconnect(500)
+	}
+	if err := g.lua.onSeat(FinalizeFunc); err != nil {
+		return err
 	}
 	g.lua.Final()
 	return nil

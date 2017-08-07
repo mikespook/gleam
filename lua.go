@@ -27,8 +27,10 @@ import (
 const (
 	MessageFunc        = "onDefaultMessage"
 	ErrorFunc          = "onError"
+	InitFunc           = "init"
 	AfterInitFunc      = "afterInit"
 	BeforeFinalizeFunc = "beforeFinalize"
+	FinalizeFunc       = "finalize"
 
 	LogFunc  = "log"
 	LogfFunc = "logf"
@@ -213,6 +215,20 @@ func (e *luaEnv) onError(ctx context.Context, err error) {
 	if err := e.l.CallByParam(p, ctxL, errL); err != nil {
 		log.Printf("Error: %s", err)
 	}
+}
+
+func (e *luaEnv) onSeat(name string) error {
+	e.RLock()
+	p := lua.P{
+		Fn:      e.l.GetGlobal(name),
+		NRet:    0,
+		Protect: true,
+	}
+	e.RUnlock()
+	if p.Fn.Type() == lua.LTNil {
+		return nil
+	}
+	return e.l.CallByParam(p)
 }
 
 func (e *luaEnv) onEvent(name string, client mqtt.Client) error {
