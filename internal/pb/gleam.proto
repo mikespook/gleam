@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+option go_package = "./pb";
+
+package gleam;
+
+import "google/protobuf/timestamp.proto";
+
+// message Key represents the identifier for a resource.
+message Key {
+    string namespace = 1; // The namespace of the resource.
+    string key = 2;       // The key of the resource within the namespace.
+    optional string state = 3; // (COMMENTED OUT) The state of the resource.
+}
+
+// message Command represents a command to be executed.
+message Command {
+    string uuid = 1;        // The UUID of the command.
+    string command = 2;    // The command to be executed.
+    optional bytes args = 3;    // Additional arguments for the command.
+    optional bool async = 4;    // Flag indicating if the command should be executed asynchronously.
+    optional Key key = 5;    // The key associated with the command (only used in Exec).
+}
+
+// message Value represents the value associated with a resource.
+message Value {
+    bytes value = 1;    // The value of the resource.
+    optional google.protobuf.Timestamp updated_at = 2; // The timestamp when the value was last updated (only returned by GetMetadata and GetConfig).
+}
+
+// message Result represents the result of executing a command.
+message Result {
+    string uuid = 1;    // The UUID of the result.
+    bytes value = 2;    // The value associated with the result.
+    bool is_error = 3;
+}
+
+// service Gleam represents the gRPC service for executing commands and retrieving metadata and configurations.
+service Gleam {
+    // Connect establishes a stream for sending commands based on provided keys.
+    rpc Connect(stream Key) returns (stream Command) {}
+
+    // GetMetadata retrieves metadata for a given key.
+    rpc GetMetadata(Key) returns (Value) {}
+
+    // GetConfig retrieves configuration for a given key.
+    rpc GetConfig(Key) returns (Value) {}
+
+    // Exec executes a command based on the provided Command.
+    rpc Exec(Command) returns (Value) {}
+
+    // Callback sends a result back asynchronously via a stream.
+    rpc Callback(Result) returns (Value) {}
+}
