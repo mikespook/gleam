@@ -3,8 +3,6 @@ gLeam
 
 [![Build Status][travis-img]][travis]
 
-gLeam witch works with [mqtt][mqtt] is a cluster for executing customised tasks.
-
 Installing & Running
 ====================
 
