@@ -45,7 +45,6 @@ func UpdateCommand(result *pb.Result) error {
 	SET result=$1, state=$2, updated_at=now()
 	WHERE uuid = $3;`
 	_, err := pool.Exec(ctx, sql, result.Value, state, result.Uuid)
-	print(string(result.Uuid))
 	slog.Debug("update", "uuid", result.Uuid, "error", err)
 	return err
 }

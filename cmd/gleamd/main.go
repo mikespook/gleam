@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/mikespook/gleam/internal/db"
 	"github.com/mikespook/gleam/internal/server"
 )
@@ -18,15 +20,31 @@ const (
 var (
 	addr      string
 	dbDSN     string
+	logLevel  string
 	dbTimeout = time.Second * 5
 )
 
 func init() {
-	flag.StringVar(&dbDSN, "dsn", "postgres://postgres:xxiyy@localhost:5432/config", "database DSN")
+	flag.StringVar(&logLevel, "log-level", "info", "log level in [debug, info, warn, error]")
+	flag.StringVar(&dbDSN, "dsn", "postgres://postgres@localhost:5432/config", "database DSN")
 	flag.StringVar(&addr, "addr", "127.0.0.1:9091", "listen address")
 	flag.Parse()
 
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	switch logLevel {
+	case "debug":
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	case "warn":
+		slog.SetLogLoggerLevel(slog.LevelWarn)
+	case "error":
+		slog.SetLogLoggerLevel(slog.LevelError)
+	default: // info
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	envDSN := os.Getenv("POSTGRESQL_DSN")
+	if envDSN != "" {
+		dbDSN = envDSN
+	}
 }
 
 func main() {
@@ -34,18 +52,22 @@ func main() {
 		slog.Error("DB", "connect", err)
 		return
 	}
-	slog.Info("Main", "database", "connected")
+
+	config, _ := pgx.ParseConfig(dbDSN)
+	slog.Info("DB", "connected", fmt.Sprintf("%s@%s:%d/%s", config.User, config.Host, config.Port, config.Database))
 	if err := dbInit(); err != nil {
 		slog.Error("DB", "init", err)
 		return
 	}
-	slog.Info("Main", "database", "initialised")
+	slog.Info("DB", "database", "initialised")
+
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		slog.Error("Network", "listen", err)
 		return
 	}
-	slog.Info("Main", "listen", addr)
+	slog.Info("Server", "listen", addr)
+
 	if err := server.Serve(l); err != nil {
 		slog.Error("Server", "serve", err)
 		os.Exit(ExitCodeServeError)

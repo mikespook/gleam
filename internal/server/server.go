@@ -40,7 +40,6 @@ var (
 func Serve(l net.Listener) (err error) {
 	s := grpc.NewServer()
 	pb.RegisterGleamServer(s, newServer())
-	slog.Info("Server", "serve", l.Addr())
 	return s.Serve(l)
 }
 
