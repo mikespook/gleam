@@ -6,7 +6,7 @@ import (
 )
 
 func TestAgentAdd(t *testing.T) {
-	sdn := "postgres://postgres:xxiyy@localhost:5432/config"
+	sdn := "postgres://postgres:123456@localhost:5432/config"
 	if err := Connect(sdn, time.Second); err != nil {
 		t.Error(err)
 	}
@@ -17,7 +17,7 @@ func TestAgentAdd(t *testing.T) {
 }
 
 func TestAgentUpdateState(t *testing.T) {
-	sdn := "postgres://postgres:xxiyy@localhost:5432/config"
+	sdn := "postgres://postgres:123456@localhost:5432/config"
 	if err := Connect(sdn, time.Second); err != nil {
 		t.Error(err)
 	}

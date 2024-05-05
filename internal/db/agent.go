@@ -2,8 +2,6 @@ package db
 
 import (
 	"context"
-	"net/url"
-	"time"
 )
 
 const (
@@ -12,17 +10,6 @@ const (
 	ServiceStateOnline  = "online"
 	ServiceStateOffline = "offline"
 )
-
-type Agent struct {
-	Key       string
-	Namespace *Namespace
-	Name      string
-	State     string
-	Metadata  url.Values
-	Data      url.Values
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
 
 func AddAgent(namespace, key, state string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

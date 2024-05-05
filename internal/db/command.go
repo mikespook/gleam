@@ -15,22 +15,13 @@ const (
 	CommandStateRunning  = "running"
 )
 
-type Command struct {
-	ID      string
-	Sender  *Agent
-	Worker  *Agent
-	Command string
-	Args    []byte
-	Async   bool
-}
-
-func AddCommand(cmd *Command) error {
+func AddCommand(cmd *pb.Command) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	sql := `INSERT INTO public.stream_logs(uuid, command, args, async)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (uuid) DO UPDATE SET updated_at = now();`
-	_, err := pool.Exec(ctx, sql, cmd.ID, cmd.Command, cmd.Args, cmd.Async)
+	_, err := pool.Exec(ctx, sql, cmd.Uuid, cmd.Command, cmd.Args, cmd.Async)
 	return err
 }
 

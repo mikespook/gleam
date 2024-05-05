@@ -245,12 +245,8 @@ func (s *Server) Exec(ctx context.Context, cmd *pb.Command) (value *pb.Value, er
 		err = ErrMissingAgent
 		return
 	}
-	obj := &db.Command{
-		ID:      cmd.Uuid,
-		Command: cmd.Command,
-		Args:    cmd.Args,
-	}
-	if err = db.AddCommand(obj); err != nil {
+
+	if err = db.AddCommand(cmd); err != nil {
 		return
 	}
 	// Send the command to the agent's command channel
