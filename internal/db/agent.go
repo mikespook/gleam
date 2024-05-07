@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -34,4 +36,20 @@ func UpdateAgentState(namespace, key, state string) error {
 		return err
 	}
 	return nil
+}
+
+func GetMetadata(key string) (metadata []byte, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := "SELECT metadata FROM public.agents WHERE key = $1;"
+	rows, err := pool.Query(ctx, sql, key)
+	if err != nil {
+		return nil, err
+	}
+	metadata, err = pgx.CollectOneRow(rows, func(row pgx.CollectableRow) ([]byte, error) {
+		var metadata []byte
+		err := row.Scan(metadata)
+		return metadata, err
+	})
+	return
 }

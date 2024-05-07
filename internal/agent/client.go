@@ -27,24 +27,25 @@ type Client struct {
 	stream    pb.Gleam_ConnectClient
 }
 
-func New(namespace, key string, conn grpc.ClientConnInterface) (client *Client, err error) {
-	c := &Client{
+func New(namespace, key string, conn grpc.ClientConnInterface) (client *Client) {
+	client = &Client{
 		Namespace: namespace,
 		Key:       key,
 	}
-	c.cc = pb.NewGleamClient(conn)
-	c.stream, err = register(namespace, key, c.cc)
-	if err != nil {
-		return
-	}
-	client = c
+	client.cc = pb.NewGleamClient(conn)
 	return
 }
 
-func (client *Client) Loop(heartbeat time.Duration) error {
-	ctx, cancle := context.WithCancel(context.Background())
-	go client.heartbeats(cancle, heartbeat)
-	return client.loop(ctx)
+func (client *Client) Loop(heartbeat time.Duration) (err error) {
+	client.stream, err = register(client.Namespace, client.Key, client.cc)
+	if err != nil {
+		return
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go client.loop(cancel)
+	return client.heartbeats(ctx, heartbeat)
 }
 
 func (client *Client) Close() error {
@@ -92,44 +93,53 @@ func register(namespace, agentKey string, cc pb.GleamClient) (stream pb.Gleam_Co
 	return
 }
 
-func (client *Client) loop(ctx context.Context) (err error) {
+func (client *Client) loop(cancel context.CancelFunc) (err error) {
+	defer cancel()
 	var cmd *pb.Command
 	for {
-		select {
-		case <-ctx.Done():
+		if cmd, err = client.stream.Recv(); err != nil {
 			return
-		default:
-			if cmd, err = client.stream.Recv(); err != nil {
-				return
-			}
-			result := &pb.Result{
-				Uuid: cmd.Uuid,
-			}
-			if result.Value, err = execCommand(cmd); err != nil {
-				result.Value = []byte(err.Error())
-				result.IsError = true
-			}
-			slog.Debug("Exec", "cmd", cmd)
-			slog.Debug("Exec", "result", result)
-			if _, err = client.cc.Callback(ctx, result); err != nil {
-				slog.Error("Exec", "uuid", cmd.Uuid, "error", err)
-				return
-			}
+		}
+		result := &pb.Result{
+			Uuid: cmd.Uuid,
+		}
+		if result.Value, err = execCommand(cmd); err != nil {
+			result.Value = []byte(err.Error())
+			result.IsError = true
+		}
+		slog.Debug("Exec", "cmd", cmd)
+		slog.Debug("Exec", "result", result)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		if _, err = client.cc.Callback(ctx, result); err != nil {
+			slog.Error("Exec", "uuid", cmd.Uuid, "error", err)
+			return
 		}
 	}
 }
 
-func (client *Client) heartbeats(cancel context.CancelFunc, t time.Duration) (err error) {
-	defer cancel()
+func (client *Client) heartbeats(ctx context.Context, t time.Duration) (err error) {
 	defer client.stream.CloseSend()
 	ticker := time.NewTicker(t)
 	defer ticker.Stop()
-	for range ticker.C {
-		state := db.ServiceStateOnline
-		key := pb.Key{Namespace: Namespace, Key: Key, State: &state}
-		if err = client.stream.Send(&key); err != nil {
+	if err = client.beat(); err != nil {
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
 			return
+		case <-ticker.C:
+			if err = client.beat(); err != nil {
+				return
+			}
 		}
 	}
 	return
+}
+
+func (client *Client) beat() (err error) {
+	state := db.ServiceStateOnline
+	key := pb.Key{Namespace: client.Namespace, Key: client.Key, State: &state}
+	return client.stream.Send(&key)
 }

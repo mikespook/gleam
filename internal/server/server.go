@@ -67,10 +67,6 @@ func (s *Server) addAgent(key *pb.Key) (agent *Agent, err error) {
 	if _, ok := s.agents[key.Namespace]; !ok {
 		s.agents[key.Namespace] = newAgentsGrouped()
 	}
-	if _, ok := s.agents[key.Namespace][key.Key]; ok {
-		err = ErrDuplicatedAgent
-		return
-	}
 	if err = db.AddAgent(key.Namespace, key.Key, db.ServiceStateInit); err != nil {
 		return
 	}
@@ -83,14 +79,17 @@ func (s *Server) setAgent(key *pb.Key) (err error) {
 	s.Lock()
 	defer s.Unlock()
 	if _, ok := s.agents[key.Namespace]; !ok {
+		err = ErrMissingAgent
 		return
 	}
 	if _, ok := s.agents[key.Namespace][key.Key]; !ok {
+		err = ErrMissingAgent
 		return
 	}
 	s.agents[key.Namespace][key.Key].UpdatedAt = time.Now()
 	s.agents[key.Namespace][key.Key].State = *key.State
-	return db.UpdateAgentState(key.Key, key.Namespace, *key.State)
+
+	return db.UpdateAgentState(key.Namespace, key.Key, *key.State)
 }
 
 func (s *Server) removeAgent(key *pb.Key) (err error) {
@@ -103,7 +102,7 @@ func (s *Server) removeAgent(key *pb.Key) (err error) {
 		return
 	}
 	delete(s.agents[key.Namespace], key.Key)
-	return db.UpdateAgentState(key.Key, key.Namespace, db.ServiceStateOffline)
+	return db.UpdateAgentState(key.Namespace, key.Key, db.ServiceStateOffline)
 }
 
 // Connect handles the connection with a client and manages the agent's lifecycle.
@@ -254,6 +253,8 @@ func (s *Server) Exec(ctx context.Context, cmd *pb.Command) (value *pb.Value, er
 	return
 }
 
+// Callback handles the callback from the worker for an executed command.
+// It updates the database with the result and returns the corresponding value.
 func (s *Server) Callback(ctx context.Context, result *pb.Result) (value *pb.Value, err error) {
 	slog.Debug("Callback", "result", result, "uuid", result.Uuid)
 	if err = db.UpdateCommand(result); err != nil {

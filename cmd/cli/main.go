@@ -41,12 +41,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	c, err := agent.New("default", "cli", conn)
-	if err != nil {
-		slog.Error("Client", "error", err)
-		os.Exit(ExitCodeConnectError)
-	}
-
+	c := agent.New("default", "cli", conn)
 	defer func() {
 		if err := c.Close(); err != nil {
 			slog.Error("Client", "error", err)

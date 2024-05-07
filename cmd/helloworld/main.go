@@ -2,12 +2,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	"github.com/mikespook/gleam/internal/agent"
 	"github.com/mikespook/gleam/internal/pb"
@@ -23,7 +26,8 @@ var (
 	namespace string
 	key       string
 	addr      string
-	heartbeat = time.Second * 10
+	heartbeat = time.Second * 5
+	delay     = time.Second * 3
 )
 
 func init() {
@@ -45,25 +49,31 @@ func main() {
 	}
 	defer conn.Close()
 
-	client, err := agent.New(namespace, key, conn)
-	if err != nil {
-		slog.Error("Connect", "error", err)
-		os.Exit(ExitCodeConnectError)
-	}
-	defer func() {
-		err := client.Close()
-		if err != nil {
-			slog.Error("Connect", "error", err)
-			os.Exit(ExitUnexpectedError)
-		}
-	}()
 	hello := &pb.Command{
 		Command: "hello",
 	}
 	agent.RegisterCommand(hello, helloworld)
-	if err := client.Loop(heartbeat); err != nil {
-		slog.Error("Connect", "error", err)
-		os.Exit(ExitCodeConnectError)
+
+	slog.Info("Config", "namespace", namespace, "key", key, "heartbeat", heartbeat, "delay", delay)
+	client := agent.New(namespace, key, conn)
+	for {
+		err := func() (err error) {
+			defer func() {
+				slog.Warn("Loop", "error", fmt.Sprintf("lost connection, retry in %d seconds", delay/time.Second))
+				time.Sleep(delay)
+			}()
+			if err = client.Loop(heartbeat); err != nil {
+				if status.Code(err) == codes.Unavailable {
+					err = nil
+					return
+				}
+			}
+			return
+		}()
+		if err != nil {
+			slog.Error("Connect", "error", err)
+			os.Exit(ExitCodeConnectError)
+		}
 	}
 }
 
