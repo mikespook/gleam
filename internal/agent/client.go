@@ -18,8 +18,6 @@ const (
 	Key       = "default"
 )
 
-var ()
-
 type Client struct {
 	Namespace string
 	Key       string
@@ -70,27 +68,27 @@ func (client *Client) Exec(namespace, key, command string, args []byte, async bo
 	return v.Value, nil
 }
 
-func Wait(conn *grpc.ClientConn) {
-	for {
-		state := conn.GetState()
-		slog.Info("Connection", "state", state)
-		if state == connectivity.Ready {
-			break
-		}
-		time.Sleep(time.Millisecond * 100)
+func (client *Client) GetConfig(namespace, key string) (result []byte, err error) {
+	pbkey := &pb.Key{
+		Namespace: namespace,
+		Key:       key,
 	}
-}
-
-func register(namespace, agentKey string, cc pb.GleamClient) (stream pb.Gleam_ConnectClient, err error) {
-	stream, err = cc.Connect(context.Background())
+	v, err := client.cc.GetConfig(context.Background(), pbkey)
 	if err != nil {
-		return
+		return nil, err
 	}
-
-	state := db.ServiceStateInit
-	key := pb.Key{Namespace: namespace, Key: agentKey, State: &state}
-	err = stream.Send(&key)
-	return
+	return v.Value, nil
+}
+func (client *Client) GetMetadata(namespace, key string) (result []byte, err error) {
+	pbkey := &pb.Key{
+		Namespace: namespace,
+		Key:       key,
+	}
+	v, err := client.cc.GetMetadata(context.Background(), pbkey)
+	if err != nil {
+		return nil, err
+	}
+	return v.Value, nil
 }
 
 func (client *Client) loop(cancel context.CancelFunc) (err error) {
@@ -142,4 +140,27 @@ func (client *Client) beat() (err error) {
 	state := db.ServiceStateOnline
 	key := pb.Key{Namespace: client.Namespace, Key: client.Key, State: &state}
 	return client.stream.Send(&key)
+}
+
+func Wait(conn *grpc.ClientConn) {
+	for {
+		state := conn.GetState()
+		slog.Info("Connection", "state", state)
+		if state == connectivity.Ready {
+			break
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
+}
+
+func register(namespace, agentKey string, cc pb.GleamClient) (stream pb.Gleam_ConnectClient, err error) {
+	stream, err = cc.Connect(context.Background())
+	if err != nil {
+		return
+	}
+
+	state := db.ServiceStateInit
+	key := pb.Key{Namespace: namespace, Key: agentKey, State: &state}
+	err = stream.Send(&key)
+	return
 }

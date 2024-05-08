@@ -16,9 +16,8 @@ func GetConfig(key *pb.Key) (value []byte, err error) {
 		return nil, err
 	}
 	value, err = pgx.CollectOneRow(rows, func(row pgx.CollectableRow) ([]byte, error) {
-		var metadata []byte
-		err := row.Scan(metadata)
-		return metadata, err
+		v := row.RawValues()
+		return v[0], err
 	})
 	return
 }
