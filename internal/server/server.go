@@ -67,7 +67,8 @@ func (s *Server) addAgent(key *pb.Key) (agent *Agent, err error) {
 	if _, ok := s.agents[key.Namespace]; !ok {
 		s.agents[key.Namespace] = newAgentsGrouped()
 	}
-	if err = db.AddAgent(key.Namespace, key.Key, db.ServiceStateInit); err != nil {
+	*key.State = db.ServiceStateInit
+	if err = db.AddAgent(key); err != nil {
 		return
 	}
 	agent = newAgent(key.Namespace, key.Key)
@@ -89,7 +90,7 @@ func (s *Server) setAgent(key *pb.Key) (err error) {
 	s.agents[key.Namespace][key.Key].UpdatedAt = time.Now()
 	s.agents[key.Namespace][key.Key].State = *key.State
 
-	return db.UpdateAgentState(key.Namespace, key.Key, *key.State)
+	return db.UpdateAgentState(key)
 }
 
 func (s *Server) removeAgent(key *pb.Key) (err error) {
@@ -102,7 +103,8 @@ func (s *Server) removeAgent(key *pb.Key) (err error) {
 		return
 	}
 	delete(s.agents[key.Namespace], key.Key)
-	return db.UpdateAgentState(key.Namespace, key.Key, db.ServiceStateOffline)
+	*key.State = db.ServiceStateOffline
+	return db.UpdateAgentState(key)
 }
 
 // Connect handles the connection with a client and manages the agent's lifecycle.
@@ -218,10 +220,24 @@ func (s *Server) recv(agent *Agent, stream pb.Gleam_ConnectServer) (key *pb.Key,
 }
 
 func (s *Server) GetMetadata(ctx context.Context, key *pb.Key) (value *pb.Value, err error) {
+	var metadataValue []byte
+	if metadataValue, err = db.GetMetadata(key); err != nil {
+		return
+	}
+	value = &pb.Value{
+		Value: metadataValue,
+	}
 	return
 }
 
 func (s *Server) GetConfig(ctx context.Context, key *pb.Key) (value *pb.Value, err error) {
+	var configValue []byte
+	if configValue, err = db.GetConfig(key); err != nil {
+		return
+	}
+	value = &pb.Value{
+		Value: configValue,
+	}
 	return
 }
 
