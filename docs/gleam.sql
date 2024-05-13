@@ -2,20 +2,24 @@
 -- Please log an issue at https://github.com/pgadmin-org/pgadmin4/issues/new/choose if you find any bugs, including reproduction steps.
 BEGIN;
 
+DROP TABLE IF EXISTS public.configs CASCADE;
+DROP TABLE IF EXISTS public.agents CASCADE;
+DROP TABLE IF EXISTS public.stream_logs;
+DROP TABLE IF EXISTS public.namespaces;
+DROP TABLE IF EXISTS public.daemons CASCADE;
+
 -- 
 DROP TYPE IF EXISTS public.command_state;
 CREATE TYPE public.command_state AS ENUM
     ('success', 'error', 'not_found', 'timeout', 'running');
 ALTER TYPE public.command_state
     OWNER TO postgres;
-
 -- 
 DROP TYPE IF EXISTS public.general_state;
 CREATE TYPE public.general_state AS ENUM
     ('enabled', 'disabled');
 ALTER TYPE public.general_state
     OWNER TO postgres;
-
 -- 
 DROP TYPE IF EXISTS public.service_state;
 CREATE TYPE public.service_state AS ENUM
@@ -23,26 +27,20 @@ CREATE TYPE public.service_state AS ENUM
 ALTER TYPE public.service_state
     OWNER TO postgres;
 
---
-ALTER TABLE IF EXISTS public.agents DROP CONSTRAINT IF EXISTS namespace_agents_fkey;
-ALTER TABLE IF EXISTS public.configs DROP CONSTRAINT IF EXISTS namespace_configs_fkey;
-
---
-DROP TABLE IF EXISTS public.agents;
 CREATE TABLE IF NOT EXISTS public.agents
 (
     namespace character(64) COLLATE pg_catalog."default" DEFAULT 'default'::bpchar,
     key character(64) COLLATE pg_catalog."default" NOT NULL,
     name character varying(64) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
     state service_state NOT NULL DEFAULT 'init'::service_state,
-    metadata jsonb NOT NULL,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    daemon_namespace character(64),
+    daemon_key character(64),
     CONSTRAINT agents_pkey PRIMARY KEY (key, namespace)
 );
 
---
-DROP TABLE IF EXISTS public.configs;
 CREATE TABLE IF NOT EXISTS public.configs
 (
     namespace character(64) COLLATE pg_catalog."default" NOT NULL,
@@ -53,8 +51,6 @@ CREATE TABLE IF NOT EXISTS public.configs
     CONSTRAINT config_pkey PRIMARY KEY (key, namespace)
 );
 
---
-DROP TABLE IF EXISTS public.namespaces;
 CREATE TABLE IF NOT EXISTS public.namespaces
 (
     key character(64) COLLATE pg_catalog."default" NOT NULL,
@@ -64,8 +60,6 @@ CREATE TABLE IF NOT EXISTS public.namespaces
     CONSTRAINT namespace_pkey PRIMARY KEY (key)
 );
 
---
-DROP TABLE IF EXISTS public.stream_logs;
 CREATE TABLE IF NOT EXISTS public.stream_logs
 (
     uuid uuid NOT NULL,
@@ -75,11 +69,21 @@ CREATE TABLE IF NOT EXISTS public.stream_logs
     result text,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone NOT NULL DEFAULT now(),
-	state command_state NOT NULL DEFAULT 'running'::command_state,
+    state command_state NOT NULL DEFAULT 'running'::command_state,
     PRIMARY KEY (uuid)
 );
 
---
+CREATE TABLE IF NOT EXISTS public.daemons
+(
+    namespace character(64) COLLATE pg_catalog."default" DEFAULT 'daemon'::bpchar,
+    key character(64) COLLATE pg_catalog."default" NOT NULL,
+    name character varying(64) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT daemons_pkey PRIMARY KEY (key, namespace)
+);
+
 ALTER TABLE IF EXISTS public.agents
     ADD CONSTRAINT namespace_agents_fkey FOREIGN KEY (namespace)
     REFERENCES public.namespaces (key) MATCH SIMPLE
@@ -87,7 +91,15 @@ ALTER TABLE IF EXISTS public.agents
     ON DELETE SET NULL
     NOT VALID;
 
---
+
+ALTER TABLE IF EXISTS public.agents
+    ADD CONSTRAINT daemon_agents_fkey FOREIGN KEY (namespace, key)
+    REFERENCES public.daemons (namespace, key) MATCH SIMPLE
+    ON UPDATE CASCADE
+    ON DELETE SET NULL
+    NOT VALID;
+
+
 ALTER TABLE IF EXISTS public.configs
     ADD CONSTRAINT namespace_configs_fkey FOREIGN KEY (namespace)
     REFERENCES public.namespaces (key) MATCH SIMPLE
