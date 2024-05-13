@@ -19,23 +19,24 @@ const (
 )
 
 type Client struct {
-	Namespace string
-	Key       string
-	cc        pb.GleamClient
-	stream    pb.Gleam_ConnectClient
+	*pb.Key
+	cc     pb.GleamClient
+	stream pb.Gleam_ConnectClient
 }
 
 func New(namespace, key string, conn grpc.ClientConnInterface) (client *Client) {
 	client = &Client{
-		Namespace: namespace,
-		Key:       key,
+		Key: &pb.Key{
+			Namespace: namespace,
+			Key:       key,
+		},
 	}
 	client.cc = pb.NewGleamClient(conn)
 	return
 }
 
 func (client *Client) Loop(heartbeat time.Duration) (err error) {
-	client.stream, err = register(client.Namespace, client.Key, client.cc)
+	client.stream, err = register(client.Namespace, client.Key.Key, client.cc)
 	if err != nil {
 		return
 	}
@@ -133,12 +134,11 @@ func (client *Client) heartbeats(ctx context.Context, t time.Duration) (err erro
 			}
 		}
 	}
-	return
 }
 
 func (client *Client) beat() (err error) {
 	state := db.ServiceStateOnline
-	key := pb.Key{Namespace: client.Namespace, Key: client.Key, State: &state}
+	key := pb.Key{Namespace: client.Namespace, Key: client.Key.Key, State: &state}
 	return client.stream.Send(&key)
 }
 

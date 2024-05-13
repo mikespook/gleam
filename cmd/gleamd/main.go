@@ -22,6 +22,7 @@ var (
 	dbDSN          string
 	logLevel       string
 	namespace, key string
+	heartbeat      = time.Second * 10
 	dbTimeout      = time.Second * 5
 )
 
@@ -75,7 +76,7 @@ func main() {
 	}
 	slog.Info("Server", "listen", addr)
 
-	if err := server.Serve(namespace, key, l); err != nil {
+	if err := server.Serve(namespace, key, l, heartbeat); err != nil {
 		slog.Error("Server", "serve", err)
 		os.Exit(ExitCodeServeError)
 	}

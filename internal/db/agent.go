@@ -62,3 +62,29 @@ func GetAgentMetadata(key *pb.Key) (metadata []byte, err error) {
 	})
 	return
 }
+
+type Agent struct {
+	State string
+	pb.Key
+}
+
+func GetAgentState(key *pb.Key) (agent *Agent, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := "SELECT state, daemon_namespace, deamon_key FROM public.agents WHERE namespace = $1 and key = $2;"
+	rows, err := pool.Query(ctx, sql, key.Namespace, key.Key)
+	if err != nil {
+		return nil, err
+	}
+	agents, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (*Agent, error) {
+		agent := &Agent{}
+		if err := row.Scan(&agent.State, &agent.Namespace, &agent.Key); err != nil {
+			return nil, err
+		}
+		return agent, nil
+	})
+	if len(agents) == 0 {
+		return nil, nil
+	}
+	return agents[0], nil
+}

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
@@ -34,6 +35,20 @@ func HeartbeatDaemon(key *pb.Key) error {
 	return nil
 }
 
+func SetDaemonAddr(key *pb.Key, addr string) (err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := `UPDATE public.daemons SET updated_at = now(), metadata = jsonb_set(metadata, '{addr}', $3) WHERE namespace = $1 and key = $2;`
+	var addrBytes []byte
+	addrBytes, err = json.Marshal(addr)
+	tag, err := pool.Exec(ctx, sql, key.Namespace, key.Key, addrBytes)
+	if err != nil {
+		return err
+	}
+	slog.Debug("DB", "daemon-set-addr", tag)
+	return nil
+}
+
 func GetDaemonMetadata(key *pb.Key) (metadata []byte, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -46,5 +61,26 @@ func GetDaemonMetadata(key *pb.Key) (metadata []byte, err error) {
 		v := row.RawValues()
 		return v[0], err
 	})
+	return
+}
+
+func GetDaemonAddr(key *pb.Key) (addr string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := "SELECT metadata->>'addr' FROM public.daemons WHERE namespace = $1 and key = $2;"
+	rows, err := pool.Query(ctx, sql, key.Namespace, key.Key)
+	if err != nil {
+		return
+	}
+	addrs, err := pgx.CollectOneRow(rows, func(row pgx.CollectableRow) (addr string, err error) {
+		if err = row.Scan(&addr); err != nil {
+			return
+		}
+		return
+	})
+	if len(addrs) == 0 {
+		err = pgx.ErrNoRows
+		return
+	}
 	return
 }
