@@ -18,16 +18,23 @@ const (
 )
 
 var (
-	addr      string
-	dbDSN     string
-	logLevel  string
-	dbTimeout = time.Second * 5
+	addr           string
+	dbDSN          string
+	logLevel       string
+	namespace, key string
+	dbTimeout      = time.Second * 5
 )
 
 func init() {
 	flag.StringVar(&logLevel, "log-level", "info", "log level in [debug, info, warn, error]")
 	flag.StringVar(&dbDSN, "dsn", "postgres://postgres@localhost:5432/config", "database DSN")
 	flag.StringVar(&addr, "addr", "127.0.0.1:9091", "listen address")
+	flag.StringVar(&namespace, "namespace", "gleamd", "daemon namespace")
+	hostname, err := os.Hostname()
+	if err != nil {
+		slog.Error("Flag", "error", err)
+	}
+	flag.StringVar(&key, "key", hostname, "daemon key")
 	flag.Parse()
 
 	switch logLevel {
@@ -68,7 +75,7 @@ func main() {
 	}
 	slog.Info("Server", "listen", addr)
 
-	if err := server.Serve(l); err != nil {
+	if err := server.Serve(namespace, key, l); err != nil {
 		slog.Error("Server", "serve", err)
 		os.Exit(ExitCodeServeError)
 	}

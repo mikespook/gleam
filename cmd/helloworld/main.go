@@ -31,9 +31,9 @@ var (
 )
 
 func init() {
-	flag.StringVar(&namespace, "namespace", "default", "")
-	flag.StringVar(&key, "key", "helloworld", "")
-	flag.StringVar(&addr, "addr", "127.0.0.1:9091", "")
+	flag.StringVar(&namespace, "namespace", "default", "agent namespace")
+	flag.StringVar(&key, "key", "helloworld", "agent key")
+	flag.StringVar(&addr, "addr", "127.0.0.1:9091", "listen address")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
