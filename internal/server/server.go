@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -37,10 +38,38 @@ var (
 //   - l: A net.Listener representing the listening socket.
 //
 // Returns an error if there was an issue starting the gRPC server.
-func Serve(l net.Listener) (err error) {
+func Serve(namespace, key string, l net.Listener) (err error) {
+	if key == "" {
+		if key, err = os.Hostname(); err != nil {
+			return
+		}
+	}
+	daemonKey := &pb.Key{
+		Namespace: namespace,
+		Key:       key,
+	}
+	if err = db.AddDaemon(daemonKey); err != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go deamonHeartbeats(ctx, daemonKey, time.Second)
 	s := grpc.NewServer()
-	pb.RegisterGleamServer(s, newServer())
+	pb.RegisterGleamServer(s, newServer(daemonKey))
 	return s.Serve(l)
+}
+
+func deamonHeartbeats(ctx context.Context, key *pb.Key, t time.Duration) {
+	ticker := time.NewTicker(t)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			db.HeartbeatDaemon(key)
+		}
+	}
 }
 
 // Server represents the gRPC server for the Gleam service.
@@ -52,23 +81,26 @@ type Server struct {
 	pb.UnimplementedGleamServer
 
 	agents Agents
+
+	key *pb.Key
 }
 
-func newServer() *Server {
+func newServer(key *pb.Key) *Server {
 	s := &Server{
 		agents: newAgents(),
+		key:    key,
 	}
 	return s
 }
 
-func (s *Server) addAgent(key *pb.Key) (agent *Agent, err error) {
+func (s *Server) addAgent(key, daemon *pb.Key) (agent *Agent, err error) {
 	s.Lock()
 	defer s.Unlock()
 	if _, ok := s.agents[key.Namespace]; !ok {
 		s.agents[key.Namespace] = newAgentsGrouped()
 	}
 	*key.State = db.ServiceStateInit
-	if err = db.AddAgent(key); err != nil {
+	if err = db.AddAgent(key, daemon); err != nil {
 		return
 	}
 	agent = newAgent(key.Namespace, key.Key)
@@ -76,7 +108,7 @@ func (s *Server) addAgent(key *pb.Key) (agent *Agent, err error) {
 	return
 }
 
-func (s *Server) setAgent(key *pb.Key) (err error) {
+func (s *Server) setAgent(key, daemon *pb.Key) (err error) {
 	s.Lock()
 	defer s.Unlock()
 	if _, ok := s.agents[key.Namespace]; !ok {
@@ -89,8 +121,7 @@ func (s *Server) setAgent(key *pb.Key) (err error) {
 	}
 	s.agents[key.Namespace][key.Key].UpdatedAt = time.Now()
 	s.agents[key.Namespace][key.Key].State = *key.State
-
-	return db.UpdateAgentState(key)
+	return db.UpdateAgentState(key, daemon)
 }
 
 func (s *Server) removeAgent(key *pb.Key) (err error) {
@@ -104,7 +135,7 @@ func (s *Server) removeAgent(key *pb.Key) (err error) {
 	}
 	delete(s.agents[key.Namespace], key.Key)
 	*key.State = db.ServiceStateOffline
-	return db.UpdateAgentState(key)
+	return db.UpdateAgentState(key, nil)
 }
 
 // Connect handles the connection with a client and manages the agent's lifecycle.
@@ -140,7 +171,7 @@ func (s *Server) Connect(stream pb.Gleam_ConnectServer) (err error) {
 	}
 	var agent *Agent
 	// Add the agent to the server's agents collection
-	if agent, err = s.addAgent(agentKey); err != nil {
+	if agent, err = s.addAgent(agentKey, s.key); err != nil {
 		slog.Error("Connect", "namespace", agentKey.Namespace, "key", agentKey.Key, "error", err)
 		return
 	}
@@ -188,7 +219,7 @@ func (s *Server) heartbeatLoop(cancel context.CancelFunc, agent *Agent, stream p
 		if err != nil {
 			return
 		}
-		if err = s.setAgent(key); err != nil {
+		if err = s.setAgent(key, s.key); err != nil {
 			slog.Error("Heartbeat", "set_agent", err)
 			return
 		}
@@ -221,7 +252,7 @@ func (s *Server) recv(agent *Agent, stream pb.Gleam_ConnectServer) (key *pb.Key,
 
 func (s *Server) GetMetadata(ctx context.Context, key *pb.Key) (value *pb.Value, err error) {
 	var metadataValue []byte
-	if metadataValue, err = db.GetMetadata(key); err != nil {
+	if metadataValue, err = db.GetAgentMetadata(key); err != nil {
 		return
 	}
 	value = &pb.Value{

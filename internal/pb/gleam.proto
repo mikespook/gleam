@@ -10,7 +10,7 @@ import "google/protobuf/timestamp.proto";
 message Key {
     string namespace = 1; // The namespace of the resource.
     string key = 2;       // The key of the resource within the namespace.
-    optional string state = 3; // (COMMENTED OUT) The state of the resource.
+    optional string state = 3; // The state of the resource.
 }
 
 // message Command represents a command to be executed.

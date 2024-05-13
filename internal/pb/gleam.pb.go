@@ -29,7 +29,7 @@ type Key struct {
 
 	Namespace string  `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"` // The namespace of the resource.
 	Key       string  `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`             // The key of the resource within the namespace.
-	State     *string `protobuf:"bytes,3,opt,name=state,proto3,oneof" json:"state,omitempty"`   // (COMMENTED OUT) The state of the resource.
+	State     *string `protobuf:"bytes,3,opt,name=state,proto3,oneof" json:"state,omitempty"`   // The state of the resource.
 }
 
 func (x *Key) Reset() {
