@@ -93,7 +93,7 @@ ALTER TABLE IF EXISTS public.agents
 
 
 ALTER TABLE IF EXISTS public.agents
-    ADD CONSTRAINT daemon_agents_fkey FOREIGN KEY (namespace, key)
+	ADD CONSTRAINT daemon_agents_fkey FOREIGN KEY (daemon_namespace, daemon_key)
     REFERENCES public.daemons (namespace, key) MATCH SIMPLE
     ON UPDATE CASCADE
     ON DELETE SET NULL
