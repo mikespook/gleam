@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 
+	"github.com/mikespook/gleam/internal/db"
 	"github.com/mikespook/gleam/internal/pb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,12 +39,24 @@ func (s *Server) Connect(stream pb.Gleam_ConnectServer) (err error) {
 			slog.Debug("Connect", "stack", string(debug.Stack()))
 		}
 	}()
-	var agentKey *pb.Key
 	// Receive the initial agent key from the client
+	var agentKey *pb.Key
 	if agentKey, err = s.recv(nil, stream); err != nil {
 		slog.Error("Connect", "recv", err)
 		return
 	}
+	//
+	var a *db.Agent
+	if a, err = db.GetAgentState(agentKey); err != nil {
+		slog.Error("Connect", "error", err)
+		return
+	}
+	if a != nil && a.State != db.ServiceStateOffline {
+		err = ErrDuplicatedAgent
+		slog.Warn("Connect", "error", err)
+		return
+	}
+
 	var agent *Agent
 	// Add the agent to the server's agents collection
 	if agent, err = s.addAgent(agentKey, s.key); err != nil {

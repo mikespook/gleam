@@ -54,6 +54,9 @@ func Serve(namespace, key string, l net.Listener, heartbeat time.Duration) (err 
 	if err = db.SetDaemonAddr(daemonKey, l.Addr().String()); err != nil {
 		return
 	}
+	if err = db.CleanDaemon(daemonKey); err != nil {
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go deamonHeartbeats(ctx, daemonKey, time.Second)

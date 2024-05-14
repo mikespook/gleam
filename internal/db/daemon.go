@@ -84,3 +84,16 @@ func GetDaemonAddr(key *pb.Key) (addr string, err error) {
 	}
 	return
 }
+
+func CleanDaemon(key *pb.Key) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := `UPDATE public.agents SET updated_at=now(), state='offline',
+	daemon_namespace=null, daemon_key=null WHERE daemon_namespace=$1 and daemon_key=$2;`
+	tag, err := pool.Exec(ctx, sql, key.Namespace, key.Key)
+	if err != nil {
+		return err
+	}
+	slog.Debug("DB", "daemon-clean", tag)
+	return nil
+}
