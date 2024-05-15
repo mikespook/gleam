@@ -78,10 +78,11 @@ func GetAgentState(key *pb.Key) (agent *Agent, err error) {
 	defer cancel()
 	sql := "SELECT state, daemon_namespace, daemon_key FROM public.agents WHERE namespace = $1 and key = $2;"
 	row := pool.QueryRow(ctx, sql, key.Namespace, key.Key)
-	agent = &Agent{}
 	var state string
 	var agentNamespace, agentKey pgtype.Text
-	err = row.Scan(&state, &agentNamespace, &agentKey)
+	if err = row.Scan(&state, &agentNamespace, &agentKey); err != nil {
+		return
+	}
 	agent = &Agent{
 		State: state,
 		Key: pb.Key{
