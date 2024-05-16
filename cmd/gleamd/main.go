@@ -15,6 +15,10 @@ import (
 
 const (
 	ExitCodeServeError = -1
+	DefaultNamespace   = "gleamd"
+	DefaultLogLevel    = "info"
+	DefaultDSN         = "postgres://postgres@localhost:5432/config"
+	DefaultAddr        = "127.0.0.1:9091"
 )
 
 var (
@@ -27,10 +31,10 @@ var (
 )
 
 func init() {
-	flag.StringVar(&logLevel, "log-level", "info", "log level in [debug, info, warn, error]")
-	flag.StringVar(&dbDSN, "dsn", "postgres://postgres@localhost:5432/config", "database DSN")
-	flag.StringVar(&addr, "addr", "127.0.0.1:9091", "listen address")
-	flag.StringVar(&namespace, "namespace", "gleamd", "daemon namespace")
+	flag.StringVar(&logLevel, "log-level", DefaultLogLevel, "log level in [debug, info, warn, error]")
+	flag.StringVar(&dbDSN, "dsn", DefaultDSN, "database DSN")
+	flag.StringVar(&addr, "addr", DefaultAddr, "listen address")
+	flag.StringVar(&namespace, "namespace", DefaultNamespace, "daemon namespace")
 	hostname, err := os.Hostname()
 	if err != nil {
 		slog.Error("Flag", "error", err)
@@ -84,5 +88,8 @@ func main() {
 }
 
 func dbInit() (err error) {
-	return db.AddNamespace(db.DefaultNamespace, db.DefaultNamespaceName)
+	if err = db.AddNamespace(db.DefaultNamespace, db.DefaultNamespaceName); err != nil {
+		return err
+	}
+	return db.AddNamespace(DefaultNamespace, DefaultNamespace)
 }

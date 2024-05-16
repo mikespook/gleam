@@ -31,6 +31,9 @@ func newDaemons() Daemons {
 func (s *Server) setDaemon(daemon *Daemon) {
 	s.daemonMutex.Lock()
 	defer s.daemonMutex.Unlock()
+	if _, ok := s.daemons[daemon.Namespace]; !ok {
+		s.daemons[daemon.Namespace] = newDaemonsGrouped()
+	}
 	s.daemons[daemon.Namespace][daemon.Key.Key] = daemon
 }
 
@@ -38,11 +41,11 @@ func (s *Server) getDaemon(agent *db.Agent) (daemon *Daemon, err error) {
 	s.daemonMutex.RLock()
 	defer s.daemonMutex.RUnlock()
 	// Check if the agent exists in the server's agents collection
-	if _, ok := s.daemons[agent.Namespace]; !ok {
+	if _, ok := s.daemons[agent.Daemon.Namespace]; !ok {
 		return nil, ErrMissingDaemon
 	}
-	if _, ok := s.daemons[agent.Namespace][agent.Key.Key]; !ok {
+	if _, ok := s.daemons[agent.Daemon.Namespace][agent.Daemon.Key]; !ok {
 		return nil, ErrMissingDaemon
 	}
-	return s.daemons[agent.Namespace][agent.Key.Key], nil
+	return s.daemons[agent.Daemon.Namespace][agent.Daemon.Key], nil
 }

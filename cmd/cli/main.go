@@ -62,7 +62,9 @@ func main() {
 		}
 	}()
 	scanner := bufio.NewScanner(os.Stdin)
-
+	fmt.Printf("$ exec:(namespace):(key)=(cmd),(args),(async)\n")
+	fmt.Printf("$ getconfig:(namespace):(key)\n")
+	fmt.Printf("$ getmetadata:(namespace):(key)\n")
 	for {
 		fmt.Printf("$ ")
 		scanner.Scan()
@@ -132,7 +134,7 @@ func exec(c *agent.Client, key *pb.Key, input string) {
 }
 
 func command(input string) (cmd string, key *pb.Key, output string, err error) {
-	reg := regexp.MustCompile(`(\w+):(\w+):(\w+)\=?(.*$)`)
+	reg := regexp.MustCompile(`([\w|\-]+):([\w|\-]+):([\w|\-]+)\=?(.*$)`)
 	matches := reg.FindAllStringSubmatch(input, -1)
 	if len(matches) == 0 {
 		err = ErrWrongFormat

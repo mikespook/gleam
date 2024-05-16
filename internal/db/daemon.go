@@ -68,20 +68,8 @@ func GetDaemonAddr(key *pb.Key) (addr string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	sql := "SELECT metadata->>'addr' FROM public.daemons WHERE namespace = $1 and key = $2;"
-	rows, err := pool.Query(ctx, sql, key.Namespace, key.Key)
-	if err != nil {
-		return
-	}
-	addrs, err := pgx.CollectOneRow(rows, func(row pgx.CollectableRow) (addr string, err error) {
-		if err = row.Scan(&addr); err != nil {
-			return
-		}
-		return
-	})
-	if len(addrs) == 0 {
-		err = pgx.ErrNoRows
-		return
-	}
+	row := pool.QueryRow(ctx, sql, key.Namespace, key.Key)
+	err = row.Scan(&addr)
 	return
 }
 

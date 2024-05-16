@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/mikespook/gleam/internal/agent"
 	"github.com/mikespook/gleam/internal/db"
 	"github.com/mikespook/gleam/internal/pb"
 )
@@ -138,6 +137,7 @@ func (s *Server) GetConfig(ctx context.Context, key *pb.Key) (value *pb.Value, e
 func (s *Server) Exec(ctx context.Context, cmd *pb.Command) (value *pb.Value, err error) {
 	// Send the command to the agent's command channel
 	var a *Agent
+	// check agent locally
 	a, err = s.getAgent(cmd.Key)
 	if err != nil && !errors.Is(err, ErrMissingAgent) {
 		return
@@ -152,32 +152,37 @@ func (s *Server) Exec(ctx context.Context, cmd *pb.Command) (value *pb.Value, er
 			err = ErrMissingAgent
 			return
 		}
+
 		var daemon *Daemon
-		daemon, err = s.getDaemon(agentDB)
-		if err != nil && !errors.Is(err, ErrMissingDaemon) {
-			return
-		}
-		var addr string
-		addr, err = db.GetDaemonAddr(daemon.Key)
-		if err != nil {
-			return
-		}
-		opts := grpc.WithTransportCredentials(insecure.NewCredentials())
-		var conn *grpc.ClientConn
-		conn, err = grpc.Dial(addr, opts)
-		if err != nil {
-			return nil, err
-		}
-		daemon = &Daemon{
-			Client: agent.New(agentDB.Namespace, agentDB.Key.Key, conn),
-		}
-		go func() {
-			defer daemon.Close()
-			if err := daemon.Loop(s.heartbeat); err != nil {
-				slog.Error("Exec", "error", err)
+		if daemon, err = s.getDaemon(agentDB); errors.Is(err, ErrMissingDaemon) {
+			var addr string
+			addr, err = db.GetDaemonAddr(agentDB.Daemon)
+			if err != nil {
+				return
 			}
-		}()
-		s.setDaemon(daemon)
+			if addr == "" {
+				err = ErrMissingDaemon
+				return
+			}
+
+			opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+			var conn *grpc.ClientConn
+			conn, err = grpc.Dial(addr, opts)
+			if err != nil {
+				return nil, err
+			}
+			daemon = newDaemon(agentDB.Daemon.Namespace, agentDB.Daemon.Key, conn)
+			go func() {
+				defer daemon.Close()
+				if err := daemon.Loop(s.heartbeat); err != nil {
+					slog.Error("Exec", "error", err)
+				}
+			}()
+			s.setDaemon(daemon)
+		}
+		if err != nil {
+			return
+		}
 		var result []byte
 		result, err = daemon.Client.Exec(cmd.Key.Namespace, cmd.Key.Key, cmd.Command, cmd.Args, *cmd.Async)
 		if err != nil {

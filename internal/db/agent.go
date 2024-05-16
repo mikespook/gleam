@@ -69,8 +69,8 @@ func GetAgentMetadata(key *pb.Key) (metadata []byte, err error) {
 }
 
 type Agent struct {
-	State string
-	pb.Key
+	State  string
+	Daemon *pb.Key
 }
 
 func GetAgentState(key *pb.Key) (agent *Agent, err error) {
@@ -85,7 +85,7 @@ func GetAgentState(key *pb.Key) (agent *Agent, err error) {
 	}
 	agent = &Agent{
 		State: state,
-		Key: pb.Key{
+		Daemon: &pb.Key{
 			Namespace: agentNamespace.String,
 			Key:       agentKey.String,
 		},
