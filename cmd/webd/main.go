@@ -145,42 +145,80 @@ func metadataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func agentsHandler(w http.ResponseWriter, r *http.Request) {
-	agents, err := db.GetAgents()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
-	}
-	jsonBytes, err := json.Marshal(agents)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
-	}
-	if _, err := w.Write(jsonBytes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
+	switch r.Method {
+	case http.MethodGet:
+		agents, err := db.GetAgents()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		jsonBytes, err := json.Marshal(agents)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		if _, err := w.Write(jsonBytes); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+	case http.MethodDelete:
+		q := r.URL.Query()
+		key := &pb.Key{
+			Namespace: q.Get("namespace"),
+			Key:       q.Get("key"),
+		}
+		if err := db.DeleteAgent(key); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		if _, err := w.Write([]byte("{\"error\": null}")); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
 	}
 }
 
 func daemonsHandler(w http.ResponseWriter, r *http.Request) {
-	daemons, err := db.GetDaemons()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
-	}
-	jsonBytes, err := json.Marshal(daemons)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
-	}
-	if _, err := w.Write(jsonBytes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(errToBytes(err))
-		return
+	switch r.Method {
+	case http.MethodGet:
+		daemons, err := db.GetDaemons()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		jsonBytes, err := json.Marshal(daemons)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		if _, err := w.Write(jsonBytes); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+	case http.MethodDelete:
+		q := r.URL.Query()
+		key := &pb.Key{
+			Namespace: q.Get("namespace"),
+			Key:       q.Get("key"),
+		}
+		if err := db.DeleteDaemon(key); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
+		if _, err := w.Write([]byte("{\"error\": null}")); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errToBytes(err))
+			return
+		}
 	}
 }
 

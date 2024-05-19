@@ -27,53 +27,7 @@ th {
     color: yellow;
 }
 </style>
-<script>
-// Fetch data from the API
-fetch('/agents')
-	.then(response => response.json())
-	.then(data => {
-		// Fill the Agents table
-		const agentsTable = document.getElementById('agentsTable').getElementsByTagName('tbody')[0];
-		data.forEach(agent => {			
-			const row = agentsTable.insertRow();
-			row.insertCell().innerHTML = agent.namespace + "::" + agent.key;
-			row.insertCell().innerHTML = agent.name;
-			row.insertCell().innerHTML = "<label class=\"state_" + agent.state + "\">" + agent.state + "</label>";
-			row.insertCell().innerHTML = agent.metadata;
-			row.insertCell().innerHTML = agent.created_at + "/" + agent.updated_at;
-            if (typeof(agent.daemon.namespace) != "undefined" && typeof(agent.daemon.key) != "undefined") {
-			    row.insertCell().innerHTML = agent.daemon.namespace + "::" + agent.daemon.key;
-            } else {
-                row.insertCell();
-            }
-		});
-	})
-	.catch(error => {
-		console.error('Error fetching data:', error);
-	});
-
-fetch('/daemons')
-	.then(response => response.json())
-	.then(data => {
-		// Fill the Agents table
-		const agentsTable = document.getElementById('daemonsTable').getElementsByTagName('tbody')[0];
-		data.forEach(agent => {
-			const row = agentsTable.insertRow();
-            row.insertCell().innerHTML = agent.namespace + "::" + agent.key;
-			row.insertCell().innerHTML = agent.name;
-            const updatedAt = new Date(agent.updated_at);
-            const oneMin = new Date();
-            oneMin.setMinutes(oneMin.getMinutes() - 1);
-            const state = updatedAt > oneMin ? "online" : "offline";
-            row.insertCell().innerHTML = "<label class=\"state_" + state + "\">" + state + "</label>";
-			row.insertCell().innerHTML = agent.metadata;            
-			row.insertCell().innerHTML = agent.created_at + "/" + agent.updated_at;
-		});
-	})
-	.catch(error => {
-		console.error('Error fetching data:', error);
-	});	
-</script></head>
+</head>
 <body>
 <section><h2>Command</h2>
 </section>
@@ -87,6 +41,7 @@ fetch('/daemons')
 <th scope="col">Metadata</th>
 <th scope="col">Created/Updated</th>
 <th scope="col">Daemon</th>
+<th scope="col"></th>
 </tr>
 </thead>
 <tbody>
@@ -102,10 +57,107 @@ fetch('/daemons')
 <th scope="col">State</th>
 <th scope="col">Metadata</th>
 <th scope="col">Created/Updated</th>
+<th scope="col"></th>
 </tr>
 </thead>
 <tbody>
 </tbody>
 </table>
 </section>
+<script defer>
+	// Fetch data from the API
+	fetch('/agents')
+		.then(response => response.json())
+		.then(data => {
+			// Fill the Agents table
+			const agentsTable = document.getElementById('agentsTable').getElementsByTagName('tbody')[0];
+			data.forEach(agent => {			
+				const row = agentsTable.insertRow();
+				row.insertCell().innerHTML = agent.namespace + "::" + agent.key;
+				row.insertCell().innerHTML = agent.name;
+				row.insertCell().innerHTML = "<label class=\"state_" + agent.state + "\">" + agent.state + "</label>";
+				row.insertCell().innerHTML = agent.metadata;
+				row.insertCell().innerHTML = agent.created_at + "/" + agent.updated_at;
+				if (typeof(agent.daemon.namespace) != "undefined" && typeof(agent.daemon.key) != "undefined") {
+					row.insertCell().innerHTML = agent.daemon.namespace + "::" + agent.daemon.key;
+				} else {
+					row.insertCell();
+				}
+				if (agent.state == "online") {
+					row.insertCell();
+				} else {
+					const cell = row.insertCell();				
+					const button = document.createElement("button");
+					button.innerHTML = "&#10060;";
+					button.dataset.namespace = agent.namespace;
+					button.dataset.key = agent.key;
+					button.addEventListener("click", (event) => {
+						const opt = {method: 'DELETE'};
+						const u = new URL(self.location);
+						u.pathname = "/agents";
+						u.search = new URLSearchParams({namespace:agent.namespace, key:agent.key});
+						fetch(u.toString(), opt)
+							.then(response => response.json())
+							.then(data => {
+								console.debug(data);
+							})
+							.catch(error => {
+								console.error('Error fetching data:', error);
+							});	
+					});
+					cell.append(button);
+				}
+			});
+		})
+		.catch(error => {
+			console.error('Error fetching data:', error);
+		});
+	
+	fetch('/daemons')
+		.then(response => response.json())
+		.then(data => {
+			// Fill the Agents table
+			const daemonsTable = document.getElementById('daemonsTable').getElementsByTagName('tbody')[0];
+			data.forEach(daemon => {
+				const row = daemonsTable.insertRow();
+				row.insertCell().innerHTML = daemon.namespace + "::" + daemon.key;
+				row.insertCell().innerHTML = daemon.name;
+				const updatedAt = new Date(daemon.updated_at);
+				const oneMin = new Date();
+				oneMin.setMinutes(oneMin.getMinutes() - 1);
+				const state = updatedAt > oneMin ? "online" : "offline";
+				row.insertCell().innerHTML = "<label class=\"state_" + state + "\">" + state + "</label>";
+				row.insertCell().innerHTML = daemon.metadata;            
+				row.insertCell().innerHTML = daemon.created_at + "/" + daemon.updated_at;            
+				if (state == "online") {
+					row.insertCell();
+				} else {
+					const cell = row.insertCell();				
+					const button = document.createElement("button");
+					button.innerHTML = "&#10060;";
+					button.dataset.namespace = daemon.namespace;
+					button.dataset.key = daemon.key;
+					button.addEventListener("click", (event) => {
+						button.parentNode.parentNode.parentNode.removeChild(button.parentNode.parentNode)
+						const opt = {method: 'DELETE'};
+						const u = new URL(self.location);
+						u.pathname = "/daemons";
+						u.search = new URLSearchParams({namespace:daemon.namespace, key:daemon.key});
+						fetch(u.toString(), opt)
+							.then(response => response.json())
+							.then(data => {
+								console.debug(data);
+							})
+							.catch(error => {
+								console.error('Error fetching data:', error);
+							});
+					});
+					cell.append(button);
+				}
+			});
+		})
+		.catch(error => {
+			console.error('Error fetching data:', error);
+		});	
+</script>
 </body></html>
