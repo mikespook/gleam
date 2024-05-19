@@ -156,7 +156,7 @@ func (s *Server) Exec(ctx context.Context, cmd *pb.Command) (value *pb.Value, er
 		var daemon *Daemon
 		if daemon, err = s.getDaemon(agentDB); errors.Is(err, ErrMissingDaemon) {
 			var addr string
-			addr, err = db.GetDaemonAddr(agentDB.Daemon)
+			addr, err = db.GetDaemonAddr(&agentDB.Daemon)
 			if err != nil {
 				return
 			}

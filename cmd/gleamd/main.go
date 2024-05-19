@@ -19,6 +19,8 @@ const (
 	DefaultLogLevel    = "info"
 	DefaultDSN         = "postgres://postgres@localhost:5432/config"
 	DefaultAddr        = "127.0.0.1:9091"
+	heartbeat          = time.Second * 10
+	dbTimeout          = time.Second * 5
 )
 
 var (
@@ -26,8 +28,6 @@ var (
 	dbDSN          string
 	logLevel       string
 	namespace, key string
-	heartbeat      = time.Second * 10
-	dbTimeout      = time.Second * 5
 )
 
 func init() {

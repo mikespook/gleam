@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -69,8 +70,13 @@ func GetAgentMetadata(key *pb.Key) (metadata []byte, err error) {
 }
 
 type Agent struct {
-	State  string
-	Daemon *pb.Key
+	pb.Key
+	Name      string    `json:"name"`
+	State     string    `json:"state"`
+	Metadata  string    `json:"metadata"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Daemon    pb.Key    `json:"daemon"`
 }
 
 func GetAgentState(key *pb.Key) (agent *Agent, err error) {
@@ -85,10 +91,32 @@ func GetAgentState(key *pb.Key) (agent *Agent, err error) {
 	}
 	agent = &Agent{
 		State: state,
-		Daemon: &pb.Key{
+		Daemon: pb.Key{
 			Namespace: agentNamespace.String,
 			Key:       agentKey.String,
 		},
 	}
 	return
+}
+
+func GetAgents() (agents []*Agent, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := `SELECT namespace, key, name, state, metadata, created_at, updated_at,
+	daemon_namespace, daemon_key FROM public.agents;`
+	rows, err := pool.Query(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*Agent, error) {
+		var namespace, key, daemonNamespace, daemonKey pgtype.Text
+		a := &Agent{}
+		err := row.Scan(&namespace, &key, &a.Name, &a.State, &a.Metadata,
+			&a.CreatedAt, &a.UpdatedAt, &daemonNamespace, &daemonKey)
+		a.Namespace = namespace.String
+		a.Key.Key = key.String
+		a.Daemon.Namespace = daemonNamespace.String
+		a.Daemon.Key = daemonKey.String
+		return a, err
+	})
 }

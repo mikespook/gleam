@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mikespook/gleam/internal/pb"
 )
 
@@ -84,4 +86,31 @@ func CleanDaemon(key *pb.Key) error {
 	}
 	slog.Debug("DB", "daemon-clean", tag)
 	return nil
+}
+
+type Daemon struct {
+	pb.Key
+	Name      string    `json:"name"`
+	Meatadata string    `json:"metadata"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func GetDaemons() (agents []*Daemon, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	sql := `SELECT namespace, key, name, metadata, created_at, updated_at FROM public.daemons;`
+	rows, err := pool.Query(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*Daemon, error) {
+		var namespace, key, name pgtype.Text
+		d := &Daemon{}
+		err := row.Scan(&namespace, &key, &name, &d.Meatadata, &d.CreatedAt, &d.UpdatedAt)
+		d.Namespace = namespace.String
+		d.Key.Key = key.String
+		d.Name = name.String
+		return d, err
+	})
 }

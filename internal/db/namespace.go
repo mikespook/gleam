@@ -23,7 +23,7 @@ var (
 	namespaces = make(map[string]*Namespace)
 )
 
-func LoadNamespaces() error {
+func GetNamespaces() error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	sql := "SELECT key, name, created_at, updated_at FROM public.namespaces;"

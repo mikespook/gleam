@@ -1,0 +1,111 @@
+
+<!DOCTYPE html><html lang='en'>
+<head><title>gLead Webd</title><meta charset='utf-8'>
+<style>
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+th, td {
+	border: 1px solid black;
+	padding: 8px;
+	text-align: left;
+}
+th {
+	background-color: #f2f2f2;
+}
+.state_online {
+    color: green;
+}
+.state_offline {
+    color: gray;
+}
+.state_error {
+    color: red;
+}
+.state_init {
+    color: yellow;
+}
+</style>
+<script>
+// Fetch data from the API
+fetch('/agents')
+	.then(response => response.json())
+	.then(data => {
+		// Fill the Agents table
+		const agentsTable = document.getElementById('agentsTable').getElementsByTagName('tbody')[0];
+		data.forEach(agent => {			
+			const row = agentsTable.insertRow();
+			row.insertCell().innerHTML = agent.namespace + "::" + agent.key;
+			row.insertCell().innerHTML = agent.name;
+			row.insertCell().innerHTML = "<label class=\"state_" + agent.state + "\">" + agent.state + "</label>";
+			row.insertCell().innerHTML = agent.metadata;
+			row.insertCell().innerHTML = agent.created_at + "/" + agent.updated_at;
+            if (typeof(agent.daemon.namespace) != "undefined" && typeof(agent.daemon.key) != "undefined") {
+			    row.insertCell().innerHTML = agent.daemon.namespace + "::" + agent.daemon.key;
+            } else {
+                row.insertCell();
+            }
+		});
+	})
+	.catch(error => {
+		console.error('Error fetching data:', error);
+	});
+
+fetch('/daemons')
+	.then(response => response.json())
+	.then(data => {
+		// Fill the Agents table
+		const agentsTable = document.getElementById('daemonsTable').getElementsByTagName('tbody')[0];
+		data.forEach(agent => {
+			const row = agentsTable.insertRow();
+            row.insertCell().innerHTML = agent.namespace + "::" + agent.key;
+			row.insertCell().innerHTML = agent.name;
+            const updatedAt = new Date(agent.updated_at);
+            const oneMin = new Date();
+            oneMin.setMinutes(oneMin.getMinutes() - 1);
+            const state = updatedAt > oneMin ? "online" : "offline";
+            row.insertCell().innerHTML = "<label class=\"state_" + state + "\">" + state + "</label>";
+			row.insertCell().innerHTML = agent.metadata;            
+			row.insertCell().innerHTML = agent.created_at + "/" + agent.updated_at;
+		});
+	})
+	.catch(error => {
+		console.error('Error fetching data:', error);
+	});	
+</script></head>
+<body>
+<section><h2>Command</h2>
+</section>
+<section><h2>Agents</h2>
+<table id="agentsTable">
+<thead>
+<tr>
+<th scope="col">Namespace::Key</th>
+<th scope="col">Name</th>
+<th scope="col">State</th>
+<th scope="col">Metadata</th>
+<th scope="col">Created/Updated</th>
+<th scope="col">Daemon</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+</section>
+<section><h2>Daemons</h2>
+<table id="daemonsTable">
+<thead>
+<tr>
+<th scope="col">Namespace::Key</th>
+<th scope="col">Name</th>
+<th scope="col">State</th>
+<th scope="col">Metadata</th>
+<th scope="col">Created/Updated</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+</section>
+</body></html>
