@@ -92,6 +92,7 @@ th {
 					button.dataset.namespace = agent.namespace;
 					button.dataset.key = agent.key;
 					button.addEventListener("click", (event) => {
+						button.parentNode.parentNode.parentNode.removeChild(button.parentNode.parentNode);
 						const opt = {method: 'DELETE'};
 						const u = new URL(self.location);
 						u.pathname = "/agents";
@@ -138,7 +139,7 @@ th {
 					button.dataset.namespace = daemon.namespace;
 					button.dataset.key = daemon.key;
 					button.addEventListener("click", (event) => {
-						button.parentNode.parentNode.parentNode.removeChild(button.parentNode.parentNode)
+						button.parentNode.parentNode.parentNode.removeChild(button.parentNode.parentNode);
 						const opt = {method: 'DELETE'};
 						const u = new URL(self.location);
 						u.pathname = "/daemons";
