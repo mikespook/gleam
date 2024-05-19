@@ -115,14 +115,14 @@ func GetDaemons() (agents []*Daemon, err error) {
 	})
 }
 
-func DeleteDaemon(key *pb.Key) error {
+func DeleteDaemon(key *pb.Key) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	sql := `DELETE FROM public.daemons WHERE namespace=$1 and key=$2;`
+	sql := `DELETE FROM public.daemons WHERE updated_at < (now() - INTERVAL '1 minute') and namespace=$1 and key=$2;`
 	tag, err := pool.Exec(ctx, sql, key.Namespace, key.Key)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	slog.Debug("DB", "daemon-delete", tag)
-	return nil
+	return tag.RowsAffected(), nil
 }

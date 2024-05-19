@@ -170,9 +170,18 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 			Namespace: q.Get("namespace"),
 			Key:       q.Get("key"),
 		}
-		if err := db.DeleteAgent(key); err != nil {
+		n, err := db.DeleteAgent(key)
+		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(errToBytes(err))
+			return
+		}
+		if n == 0 {
+			if _, err := w.Write([]byte("{\"error\": \"The agent does not exist or is still running.\"}")); err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write(errToBytes(err))
+				return
+			}
 			return
 		}
 		if _, err := w.Write([]byte("{\"error\": null}")); err != nil {
@@ -209,9 +218,18 @@ func daemonsHandler(w http.ResponseWriter, r *http.Request) {
 			Namespace: q.Get("namespace"),
 			Key:       q.Get("key"),
 		}
-		if err := db.DeleteDaemon(key); err != nil {
+		n, err := db.DeleteDaemon(key)
+		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(errToBytes(err))
+			return
+		}
+		if n == 0 {
+			if _, err := w.Write([]byte("{\"error\": \"The daemon does not exist or is still running.\"}")); err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write(errToBytes(err))
+				return
+			}
 			return
 		}
 		if _, err := w.Write([]byte("{\"error\": null}")); err != nil {

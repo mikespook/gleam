@@ -121,14 +121,14 @@ func GetAgents() (agents []*Agent, err error) {
 	})
 }
 
-func DeleteAgent(key *pb.Key) error {
+func DeleteAgent(key *pb.Key) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	sql := `DELETE FROM public.agents WHERE namespace=$1 and key=$2;`
+	sql := `DELETE FROM public.agents WHERE state <> 'online' and namespace=$1 and key=$2;`
 	tag, err := pool.Exec(ctx, sql, key.Namespace, key.Key)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	slog.Debug("DB", "agent-delete", tag)
-	return nil
+	return tag.RowsAffected(), nil
 }
